@@ -282,10 +282,11 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       toast({ variant: "destructive", title: "Setup Error", description: "DEX is not configured for this network." });
       return false;
     }
-
-    const txToast = toast({ title: "Starting...", description: "Please follow the steps in your wallet." });
-
+    
+    let txToast: { id: string, dismiss: () => void, update: (props: any) => void } | null = null;
     try {
+      txToast = toast({ title: "Starting...", description: "Please follow the steps in your wallet." });
+
       const signer = provider.getSigner();
       const router = new ethers.Contract(network.dexRouter, UNISWAP_V2_ROUTER_ABI, signer);
       const factory = new ethers.Contract(network.dexFactory, UNISWAP_V2_FACTORY_ABI, signer);
@@ -298,42 +299,35 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const checksummedWethAddress = ethers.utils.getAddress(network.weth);
       
       // Step 1: Check if pair exists
-      if (txToast?.update) {
-        txToast.update({id: txToast.id, title: "Checking for trading pair..."});
-      }
+      txToast?.update({id: txToast.id, title: "Checking for trading pair..."});
+      
       const pairAddress = await factory.getPair(checksummedTokenAddress, checksummedWethAddress);
 
       if (pairAddress === ethers.constants.AddressZero) {
         // Step 2: Create pair if it doesn't exist
-        if (txToast?.update) {
-            txToast.update({id: txToast.id, title: "Creating Pair...", description: "Please confirm in your wallet."});
-        }
+        txToast?.update({id: txToast.id, title: "Creating Pair...", description: "Please confirm in your wallet."});
+        
         const createPairTx = await factory.createPair(checksummedTokenAddress, checksummedWethAddress);
-        await createPairTx.wait();
-        if (txToast?.update) {
-            txToast.update({id: txToast.id, title: "Pair Created!", description: "Now proceeding to add liquidity."});
-        }
+        await createPairTx.wait(); // Wait for pair creation to be mined
+        
+        txToast?.update({id: txToast.id, title: "Pair Created!", description: "Now proceeding to add liquidity."});
       }
 
       // Step 3: Approve token spending
       const tokenContract = new ethers.Contract(checksummedTokenAddress, TOKEN_ABI, signer);
       const parsedTokenAmount = ethers.utils.parseUnits(tokenAmount.toString(), token.decimals);
 
-      if (txToast?.update) {
-        txToast.update({ id: txToast.id, title: "Approving Token...", description: "Please confirm the transaction in your wallet." });
-      }
+      txToast?.update({ id: txToast.id, title: "Approving Token...", description: "Please confirm the transaction in your wallet." });
+      
       const approveTx = await tokenContract.approve(network.dexRouter, parsedTokenAmount);
       await approveTx.wait(); // Wait for approval to be mined
 
-      if (txToast?.update) {
-        txToast.update({ id: txToast.id, title: "Approval Confirmed!", description: "Proceeding to add liquidity..." });
-      }
-
+      txToast?.update({ id: txToast.id, title: "Approval Confirmed!", description: "Proceeding to add liquidity..." });
+      
       // Step 4: Add Liquidity
       const parsedEthAmount = ethers.utils.parseEther(ethAmount.toString());
       const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes
       
-      // Basic slippage calculation (5%)
       const slippageBps = ethers.BigNumber.from(500); // 500 basis points = 5%
       const amountTokenMin = parsedTokenAmount.sub(parsedTokenAmount.mul(slippageBps).div(10000));
       const amountETHMin = parsedEthAmount.sub(parsedEthAmount.mul(slippageBps).div(10000));
@@ -350,11 +344,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       
       await addLiquidityTx.wait();
       
-      if (txToast?.update) {
-        txToast.update({id: txToast.id, title: "Success!", description: "Liquidity added successfully."});
-      } else {
-        toast({title: "Success!", description: "Liquidity added successfully."});
-      }
+      txToast?.update({id: txToast.id, title: "Success!", description: "Liquidity added successfully."});
       
       refreshTokens();
       return true;
@@ -363,7 +353,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       console.error("Add liquidity failed:", error);
       const message = error.reason || (error.data ? error.data.message : null) || error.message || "An unknown error occurred.";
       const finalMessage = message.length > 100 ? message.substring(0, 100) + "..." : message;
-      if (txToast?.update) {
+      if (txToast) {
         txToast.update({id: txToast.id, variant: "destructive", title: "Add Liquidity Failed", description: finalMessage });
       } else {
         toast({variant: "destructive", title: "Add Liquidity Failed", description: finalMessage });
