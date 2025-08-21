@@ -292,13 +292,14 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       // Approve router to spend token
       toast({ title: "Approving Token...", description: "Please confirm the transaction in your wallet." });
       const approveTx = await tokenContract.approve(network.dexRouter, parsedTokenAmount);
-      toast({ title: "Waiting for Approval...", description: "Confirming approval transaction..." });
-      await approveTx.wait();
-      toast({ title: "Token Approved!", description: "Now adding liquidity." });
-
+      
+      // We don't wait for the receipt here to avoid timeouts on slow networks.
+      // The wallet will handle queuing the transactions.
+      toast({ title: "Approval Sent!", description: "Now confirming liquidity transaction." });
+      
       const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
 
-      const tx = await router.addLiquidityETH(
+      const addLiquidityTx = await router.addLiquidityETH(
         checksummedTokenAddress,
         parsedTokenAmount,
         amountTokenMin,
@@ -309,7 +310,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       );
 
       toast({ title: "Transaction Submitted", description: "Waiting for confirmation..." });
-      await tx.wait();
+      await addLiquidityTx.wait();
       toast({ title: "Success!", description: "Liquidity added successfully." });
       refreshTokens();
       return true;
