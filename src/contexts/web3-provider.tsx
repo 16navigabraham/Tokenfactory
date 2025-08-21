@@ -64,6 +64,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   }, [toast]);
 
   const updateBalance = useCallback(async (prov: ethers.providers.Web3Provider, addr: string) => {
+    if(!prov || !addr) return;
     try {
       const balanceWei = await prov.getBalance(addr);
       setBalance(ethers.utils.formatEther(balanceWei));
@@ -73,12 +74,30 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     }
   }, []);
   
-  const handleStateUpdate = useCallback((newProvider: ethers.providers.Web3Provider, newAddress: string, newChainId: number) => {
-      setProvider(newProvider);
-      setAddress(newAddress);
-      setChainId(newChainId);
-      updateBalance(newProvider, newAddress);
-  },[updateBalance]);
+  const handleStateUpdate = useCallback(async (newProvider: ethers.providers.Web3Provider | null) => {
+      if (!newProvider) {
+        disconnectWallet();
+        return;
+      }
+      try {
+        const accounts = await newProvider.listAccounts();
+        if (accounts.length === 0) {
+            disconnectWallet();
+            return;
+        }
+        const signer = newProvider.getSigner();
+        const newAddress = await signer.getAddress();
+        const networkInfo = await newProvider.getNetwork();
+
+        setProvider(newProvider);
+        setAddress(newAddress);
+        setChainId(networkInfo.chainId);
+        await updateBalance(newProvider, newAddress);
+      } catch (error) {
+        console.error("Error updating state:", error);
+        disconnectWallet();
+      }
+  },[disconnectWallet, updateBalance]);
 
   const connectWallet = useCallback(async () => {
     if (typeof window.ethereum === 'undefined') {
@@ -88,15 +107,9 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     
     setIsConnecting(true);
     try {
-      const newProvider = new ethers.providers.Web3Provider(window.ethereum);
-      
-      await newProvider.send("eth_requestAccounts", []);
-      const signer = newProvider.getSigner();
-      const newAddress = await signer.getAddress();
-      const networkInfo = await newProvider.getNetwork();
-
-      handleStateUpdate(newProvider, newAddress, networkInfo.chainId);
-
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
+      await handleStateUpdate(newProvider);
     } catch (error: any) {
       console.error("Failed to connect wallet", error);
       if (error.code === 4001) {
@@ -112,11 +125,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   const handleAccountsChanged = useCallback(async (accounts: string[]) => {
     if (accounts.length > 0) {
-        const newProvider = new ethers.providers.Web3Provider(window.ethereum);
-        const signer = newProvider.getSigner();
-        const newAddress = await signer.getAddress();
-        const networkInfo = await newProvider.getNetwork();
-        handleStateUpdate(newProvider, newAddress, networkInfo.chainId);
+      const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
+      await handleStateUpdate(newProvider);
     } else {
       disconnectWallet();
     }
@@ -132,7 +142,11 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       await provider.send('wallet_switchEthereumChain', [{ chainId: `0x${newChainId.toString(16)}` }]);
     } catch (error: any) {
       if (error.code === 4902) {
-        toast({ variant: "destructive", title: "Network not added", description: "Please add the network to your MetaMask wallet." });
+        const chainDetails = SUPPORTED_CHAINS.find(c => c.id === newChainId);
+        if (chainDetails) {
+            // Logic to add network can be implemented here if desired.
+            toast({ variant: "destructive", title: "Network not added", description: `Please add ${chainDetails.name} to your MetaMask wallet.` });
+        }
       } else {
         toast({ variant: "destructive", title: "Failed to switch network", description: "Please try switching networks from your wallet." });
       }
@@ -284,10 +298,6 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const tokenContract = new ethers.Contract(checksummedTokenAddress, TOKEN_ABI, signer);
       const parsedTokenAmount = ethers.utils.parseUnits(tokenAmount.toString(), token.decimals);
       const parsedEthAmount = ethers.utils.parseEther(ethAmount.toString());
-
-      const slippageBps = 500; // 500 basis points = 5%
-      const amountTokenMin = parsedTokenAmount.sub(parsedTokenAmount.mul(slippageBps).div(10000));
-      const amountETHMin = parsedEthAmount.sub(parsedEthAmount.mul(slippageBps).div(10000));
       
       const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
 
@@ -298,12 +308,17 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       if (txToast) {
         txToast.update({id: txToast.id, title: "Waiting for Approval...", description: "Your approval transaction is being confirmed."});
       }
+      
       await approveTx.wait();
       
       if (txToast) {
         txToast.update({id: txToast.id, title: "Approval Confirmed!", description: "Now adding liquidity..."});
       }
 
+      const slippageBps = 500; // 500 basis points = 5%
+      const amountTokenMin = parsedTokenAmount.sub(parsedTokenAmount.mul(slippageBps).div(10000));
+      const amountETHMin = parsedEthAmount.sub(parsedEthAmount.mul(slippageBps).div(10000));
+      
       console.log("addLiquidityETH params:", {
         token: checksummedTokenAddress,
         amountTokenDesired: parsedTokenAmount.toString(),
@@ -365,17 +380,13 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const autoConnect = async () => {
-      if (window.ethereum) {
+      if (window.ethereum?.isMetaMask) {
         setIsConnecting(true);
         try {
-          const newProvider = new ethers.providers.Web3Provider(window.ethereum);
+          const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
           const accounts = await newProvider.listAccounts();
           if (accounts.length > 0) {
-            const signer = newProvider.getSigner();
-            const newAddress = await signer.getAddress();
-            const networkInfo = await newProvider.getNetwork();
-
-            handleStateUpdate(newProvider, newAddress, networkInfo.chainId);
+            await handleStateUpdate(newProvider);
           }
         } catch (e) {
             console.log("Could not auto-connect", e)
