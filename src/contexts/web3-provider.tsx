@@ -20,13 +20,6 @@ declare global {
   }
 }
 
-// Helper to format ETH balance
-const formatBalance = (hex: string): string => {
-  const wei = BigInt(hex);
-  const eth = Number(wei) / 1e18;
-  return eth.toString();
-};
-
 interface Web3ContextType {
   address: string | null;
   chainId: number | null;
@@ -59,66 +52,44 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   const network = useMemo(() => SUPPORTED_CHAINS.find(c => c.id === chainId) || null, [chainId]);
 
-  const updateBalance = useCallback(async (addr: string) => {
-    if (!provider) return;
+  const disconnect = useCallback(() => {
+    setAddress(null);
+    setBalance("0");
+    setChainId(null);
+    setTokens([]);
+    setProvider(null);
+  }, []);
+
+  const updateBalance = useCallback(async (prov: ethers.providers.Web3Provider, addr: string) => {
     try {
-      const balanceWei = await provider.getBalance(addr);
+      const balanceWei = await prov.getBalance(addr);
       setBalance(ethers.utils.formatEther(balanceWei));
     } catch (error) {
       console.error("Failed to get balance:", error);
       setBalance("0");
     }
-  }, [provider]);
+  }, []);
 
   const handleAccountsChanged = useCallback(async (accounts: string[]) => {
     if (accounts.length > 0) {
       const newAddress = accounts[0];
       setAddress(newAddress);
       if (provider) {
-        updateBalance(newAddress);
+        updateBalance(provider, newAddress);
       }
     } else {
-      setAddress(null);
-      setBalance("0");
-      setChainId(null);
-      setTokens([]);
-      setProvider(null);
+      disconnect();
     }
-  }, [provider, updateBalance]);
+  }, [provider, updateBalance, disconnect]);
 
   const handleChainChanged = useCallback((hexChainId: string) => {
     const newChainId = parseInt(hexChainId, 16);
     setChainId(newChainId);
     if(window.ethereum) {
-       setProvider(new ethers.providers.Web3Provider(window.ethereum));
+       setProvider(new ethers.providers.Web3Provider(window.ethereum, "any"));
     }
   }, []);
 
-  useEffect(() => {
-    if (typeof window.ethereum !== 'undefined') {
-        const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
-        setProvider(web3Provider);
-
-        web3Provider.listAccounts().then(accounts => {
-            if (accounts.length > 0) {
-                handleAccountsChanged(accounts);
-            }
-        });
-
-        web3Provider.getNetwork().then(network => {
-            setChainId(network.chainId);
-        });
-        
-        window.ethereum.on('accountsChanged', handleAccountsChanged as any);
-        window.ethereum.on('chainChanged', handleChainChanged as any);
-
-        return () => {
-            window.ethereum?.removeListener('accountsChanged', handleAccountsChanged as any);
-            window.ethereum?.removeListener('chainChanged', handleChainChanged as any);
-        };
-    }
-  }, [handleAccountsChanged, handleChainChanged]);
-  
   const connectWallet = useCallback(async () => {
     if (typeof window.ethereum === 'undefined') {
       toast({ variant: "destructive", title: "MetaMask not found", description: "Please install MetaMask to use this app." });
@@ -126,25 +97,37 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     }
     setIsConnecting(true);
     try {
-      const accounts = await window.ethereum.request<string[]>({ method: 'eth_requestAccounts' });
-      if (accounts && accounts.length > 0) {
-        handleAccountsChanged(accounts);
-        const hexChainId = await window.ethereum.request<string>({ method: 'eth_chainId' });
-        if(hexChainId) handleChainChanged(hexChainId);
-      }
+      const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
+      await newProvider.send("eth_requestAccounts", []);
+      const signer = newProvider.getSigner();
+      const newAddress = await signer.getAddress();
+      const networkInfo = await newProvider.getNetwork();
+      
+      setProvider(newProvider);
+      setAddress(newAddress);
+      setChainId(networkInfo.chainId);
+      updateBalance(newProvider, newAddress);
+
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Connection failed", description: error.message });
+      console.error("Failed to connect wallet", error);
+      toast({ variant: "destructive", title: "Connection failed", description: "Could not connect to MetaMask. Please try again." });
+      disconnect();
     } finally {
       setIsConnecting(false);
     }
-  }, [toast, handleAccountsChanged, handleChainChanged]);
+  }, [toast, updateBalance, disconnect]);
   
   const switchNetwork = useCallback(async (newChainId: number) => {
     if (!provider) return;
     try {
       await provider.send('wallet_switchEthereumChain', [{ chainId: `0x${newChainId.toString(16)}` }]);
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Failed to switch network", description: error.message });
+      if (error.code === 4902) {
+        toast({ variant: "destructive", title: "Network not added", description: "Please add the network to your MetaMask wallet." });
+      } else {
+        toast({ variant: "destructive", title: "Failed to switch network", description: "Please try switching networks from your wallet." });
+      }
+      console.error("Failed to switch network", error);
     }
   }, [provider, toast]);
 
@@ -270,11 +253,52 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   }, [provider]);
 
   useEffect(() => {
+    if (window.ethereum) {
+      const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
+
+      const handleConnect = async () => {
+        setIsConnecting(true);
+        try {
+          const accounts = await newProvider.listAccounts();
+          if (accounts.length > 0) {
+            const signer = newProvider.getSigner();
+            const newAddress = await signer.getAddress();
+            const networkInfo = await newProvider.getNetwork();
+            
+            setProvider(newProvider);
+            setAddress(newAddress);
+            setChainId(networkInfo.chainId);
+            updateBalance(newProvider, newAddress);
+          }
+        } catch(e) {
+            console.log("Could not auto-connect", e)
+        }
+        setIsConnecting(false);
+      }
+      handleConnect();
+
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
+
+      return () => {
+          window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
+          window.ethereum?.removeListener('chainChanged', handleChainChanged);
+      };
+    }
+  }, [handleAccountsChanged, handleChainChanged, updateBalance]);
+
+
+  useEffect(() => {
     if(address && provider && network) {
       refreshTokens();
+      updateBalance(provider, address);
+    }
+    if(!address) {
+      setTokens([]);
+      setBalance("0");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, provider, network?.id]);
+  }, [address, network?.id]); // removed provider and refreshTokens
 
   const value = {
     address,
@@ -296,3 +320,5 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
 }
+
+    
