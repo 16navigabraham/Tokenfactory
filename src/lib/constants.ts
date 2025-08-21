@@ -9,13 +9,13 @@ export const SUPPORTED_CHAINS = [
     id: 8453,
     name: "Base Mainnet",
     weth: "0x4200000000000000000000000000000000000006",
-    dexRouter: "0x327Df1E6de05895d2ab08513a09d229484094025" // BaseSwap
+    dexRouter: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24" // Uniswap V2 Compatible Router
   },
   {
     id: 84532,
     name: "Base Sepolia",
     weth: "0x4200000000000000000000000000000000000022",
-    dexRouter: "0x03F2A4040932E2161474447000e521193322137B" // SwapBased
+    dexRouter: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24" // Uniswap V2 Compatible Router
   },
 ];
 
