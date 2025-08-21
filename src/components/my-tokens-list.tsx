@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -10,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Copy, Settings, PlusCircle, ArrowRight, Package, Landmark, Coins } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TokenManagementDialog } from "./token-management-dialog";
+import { ethers } from "ethers";
 
 export function MyTokensList() {
   const { tokens, loadingTokens, refreshTokens } = useWeb3();
@@ -34,6 +36,17 @@ export function MyTokensList() {
     setIsDialogOpen(true);
   };
 
+  const formatBalance = (balance: string, decimals: number) => {
+    try {
+      // The balance is already a formatted string from the provider, we just need to parse and format it for display
+      const number = parseFloat(balance);
+      return number.toLocaleString(undefined, { maximumFractionDigits: 4 });
+    } catch (e) {
+      console.error("Could not format balance", e);
+      return "0.00";
+    }
+  };
+
   const TokenCard = ({ token }: { token: Token }) => (
     <div className="p-4 bg-secondary/30 rounded-lg flex justify-between items-center transition-all hover:bg-secondary/60">
       <div className="flex items-center gap-4">
@@ -51,7 +64,7 @@ export function MyTokensList() {
         </div>
       </div>
       <div className="text-right">
-        <p className="font-mono text-xl font-semibold">{token.balance}</p>
+        <p className="font-mono text-xl font-semibold">{formatBalance(token.balance, token.decimals)}</p>
         <Button variant="ghost" size="sm" onClick={() => openManagementDialog(token)} className="text-muted-foreground">
           <Settings size={14} className="mr-2" /> Manage
         </Button>
