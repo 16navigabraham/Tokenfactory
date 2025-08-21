@@ -9,7 +9,7 @@ import {
   useMemo,
 } from "react";
 import type { ReactNode } from "react";
-import { ethers, BigNumber } from "ethers";
+import { ethers } from "ethers";
 import type { Token } from "@/types";
 import { SUPPORTED_CHAINS, TOKEN_FACTORY_ADDRESS, TOKEN_FACTORY_ABI, TOKEN_ABI } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
@@ -95,14 +95,16 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       toast({ variant: "destructive", title: "MetaMask not found", description: "Please install MetaMask to use this app." });
       return;
     }
+    
     setIsConnecting(true);
     try {
       const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
-      await newProvider.send("eth_requestAccounts", []);
-      const signer = newProvider.getSigner();
-      const newAddress = await signer.getAddress();
-      const networkInfo = await newProvider.getNetwork();
       
+      // It's better to request accounts first, then get the network.
+      const accounts = await newProvider.send("eth_requestAccounts", []);
+      const networkInfo = await newProvider.getNetwork();
+      const newAddress = accounts[0];
+
       setProvider(newProvider);
       setAddress(newAddress);
       setChainId(networkInfo.chainId);
@@ -139,13 +141,15 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         const factoryAddress = TOKEN_FACTORY_ADDRESS[network.id];
         if(!factoryAddress) {
             setTokens([]);
+            setLoadingTokens(false);
             return;
         };
         const signer = provider.getSigner();
         const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
         const ownedTokenAddresses = await factory.getMyTokens();
 
-        const tokenData = await Promise.all(ownedTokenAddresses.map(async (tokenAddress: string) => {
+        const tokenDataPromises = ownedTokenAddresses.map(async (tokenAddress: string) => {
+          try {
             const tokenContract = new ethers.Contract(tokenAddress, TOKEN_ABI, provider);
             const [name, symbol, balance, decimals] = await Promise.all([
                 tokenContract.name(),
@@ -160,11 +164,21 @@ export function Web3Provider({ children }: { children: ReactNode }) {
                 balance: ethers.utils.formatUnits(balance, decimals),
                 decimals
             };
-        }));
-        setTokens(tokenData);
+          } catch (error) {
+            console.error(`Failed to fetch data for token ${tokenAddress}:`, error);
+            // Return null for tokens that fail to load
+            return null;
+          }
+        });
+
+        const settledTokenData = await Promise.all(tokenDataPromises);
+        // Filter out any null results from failed fetches
+        const validTokenData = settledTokenData.filter((data): data is Token => data !== null);
+
+        setTokens(validTokenData);
     } catch (error) {
         console.error("Failed to refresh tokens:", error);
-        toast({ variant: "destructive", title: "Error fetching tokens", description: "Could not fetch token data." });
+        toast({ variant: "destructive", title: "Error fetching tokens", description: "Could not fetch your token list." });
     } finally {
         setLoadingTokens(false);
     }
@@ -183,10 +197,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const signer = provider.getSigner();
       const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
       
-      // The new ABI doesn't have a decimals parameter for creation, we assume it's a fixed value (e.g. 18) in the token contract itself
-      // or we need to fetch it if we want to parse the supply correctly.
-      // For now, we'll assume the token contract uses 18 decimals for parsing the initial supply.
-      const supply = ethers.utils.parseUnits(initialSupply.toString(), 18);
+      const supply = ethers.utils.parseUnits(initialSupply.toString(), 18); // Assuming 18 decimals
       const tx = await factory.createToken(name, symbol, supply);
       
       toast({ title: "Transaction Submitted", description: "Waiting for confirmation..." });
@@ -196,7 +207,9 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       refreshTokens();
       return true;
     } catch(error: any) {
-      toast({ variant: "destructive", title: "Creation Failed", description: error.message });
+      console.error("Token creation failed:", error);
+      const message = error.reason || error.message || "An unknown error occurred.";
+      toast({ variant: "destructive", title: "Creation Failed", description: message });
       return false;
     }
   };
@@ -217,7 +230,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         refreshTokens();
         return true;
     } catch (error: any) {
-        toast({ variant: "destructive", title: "Minting Failed", description: error.message });
+        const message = error.reason || error.message || "An unknown error occurred.";
+        toast({ variant: "destructive", title: "Minting Failed", description: message });
         return false;
     }
   };
@@ -238,7 +252,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         refreshTokens();
         return true;
     } catch (error: any) {
-        toast({ variant: "destructive", title: "Transfer Failed", description: error.message });
+        const message = error.reason || error.message || "An unknown error occurred.";
+        toast({ variant: "destructive", title: "Transfer Failed", description: message });
         return false;
     }
   };
@@ -285,7 +300,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     autoConnect();
 
     return () => {
-        if (window.ethereum) {
+        if (window.ethereum?.removeListener) {
           window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
           window.ethereum.removeListener('chainChanged', handleChainChanged);
         }
@@ -303,7 +318,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       setBalance("0");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, network?.id]); // removed provider and refreshTokens
+  }, [address, network?.id]);
 
   const value = {
     address,

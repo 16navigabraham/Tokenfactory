@@ -62,25 +62,18 @@ export function TokenCreateForm() {
     if (!formData) return;
     
     setIsSubmitting(true);
-    try {
-      const success = await createToken(formData.name, formData.symbol, formData.initialSupply);
-      if (success) {
-        toast({
-          title: "Transaction Submitted",
-          description: "Your token is being created. It may take a moment to appear in your list.",
-        });
-        form.reset();
-      }
-    } catch (error) {
-       toast({
-        variant: "destructive",
-        title: "Creation Failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred.",
+    // No need for a try-catch here if createToken handles its own errors and toasts
+    const success = await createToken(formData.name, formData.symbol, formData.initialSupply);
+    if (success) {
+      toast({
+        title: "Transaction Submitted",
+        description: "Your token is being created. It may take a moment to appear in your list.",
       });
-    } finally {
-      setIsSubmitting(false);
-      setFormData(null);
+      form.reset();
     }
+    // createToken shows its own failure toast
+    setIsSubmitting(false);
+    setFormData(null);
   };
 
   return (
@@ -132,7 +125,7 @@ export function TokenCreateForm() {
                     <FormControl>
                       <Input type="number" placeholder="e.g. 1000000" {...field} />
                     </FormControl>
-                    <FormDescription>The number of tokens to mint upon creation.</FormDescription>
+                    <FormDescription>The number of tokens to mint upon creation (assumes 18 decimals).</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

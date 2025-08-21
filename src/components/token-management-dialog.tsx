@@ -85,33 +85,22 @@ export const TokenManagementDialog: FC<TokenManagementDialogProps> = ({ open, on
     setIsSubmitting(true);
     const { type, data } = pendingAction;
     let success = false;
-    let title = "";
 
-    try {
-      if (type === "mint") {
-        title = "Minting Tokens";
-        success = await mintTokens(token.address, data.amount);
-      } else if (type === "transfer") {
-        title = "Transferring Tokens";
-        success = await transferTokens(token.address, data.recipient, data.amount);
-      }
-
-      if (success) {
-        refreshTokens();
-        handleClose();
-      } else {
-        throw new Error("Transaction failed or was rejected.");
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: `${title} Failed`,
-        description: error instanceof Error ? error.message : "An unknown error occurred.",
-      });
-    } finally {
-      setIsSubmitting(false);
-      setPendingAction(null);
+    if (type === "mint") {
+      success = await mintTokens(token.address, data.amount);
+    } else if (type === "transfer") {
+      success = await transferTokens(token.address, data.recipient, data.amount);
     }
+
+    if (success) {
+      toast({ title: "Transaction Submitted", description: "Your transaction is being processed." });
+      refreshTokens();
+      handleClose();
+    }
+    // mintTokens/transferTokens show their own failure toasts
+
+    setIsSubmitting(false);
+    setPendingAction(null);
   };
   
   const getTransactionType = () => {
