@@ -1,5 +1,1 @@
-# Firebase Studio
-
-This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
+A tool to deploy ERC20 tokens on base chain, mainnet and testnet.h
