@@ -283,15 +283,16 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const parsedTokenAmount = ethers.utils.parseUnits(tokenAmount.toString(), token.decimals);
       const parsedEthAmount = ethers.utils.parseEther(ethAmount.toString());
 
-      // 5% slippage tolerance
-      const slippage = 0.05; 
-      const amountTokenMin = parsedTokenAmount.sub(parsedTokenAmount.mul(Math.floor(slippage * 100)).div(100));
-      const amountETHMin = parsedEthAmount.sub(parsedEthAmount.mul(Math.floor(slippage * 100)).div(100));
+      // 5% slippage tolerance (using integer math)
+      const slippageBps = 500; // 500 basis points = 5%
+      const amountTokenMin = parsedTokenAmount.sub(parsedTokenAmount.mul(slippageBps).div(10000));
+      const amountETHMin = parsedEthAmount.sub(parsedEthAmount.mul(slippageBps).div(10000));
 
 
       // Approve router to spend token
       toast({ title: "Approving Token...", description: "Please confirm the transaction in your wallet." });
       const approveTx = await tokenContract.approve(network.dexRouter, parsedTokenAmount);
+      toast({ title: "Waiting for Approval...", description: "Confirming approval transaction..." });
       await approveTx.wait();
       toast({ title: "Token Approved!", description: "Now adding liquidity." });
 
@@ -314,7 +315,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       return true;
 
     } catch (error: any) {
-      const message = error.reason || error.message || "An unknown error occurred.";
+      console.error("Add liquidity failed:", error);
+      const message = error.reason || (error.data ? error.data.message : null) || error.message || "An unknown error occurred.";
       toast({ variant: "destructive", title: "Add Liquidity Failed", description: message });
       return false;
     }
@@ -401,6 +403,3 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
 }
-
-    
-    
