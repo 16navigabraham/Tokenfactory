@@ -9,24 +9,16 @@ import type { BigNumber } from "ethers";
 const BASE_NETWORK_CONTRACTS = {
     // Base Mainnet (Chain ID: 8453)
     8453: {
-        // Uniswap V2 Router on Base (Most reliable)
-        router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
-        factory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
-        
-        // Alternative: BaseSwap
-        baseswapRouter: "0x327Df1E6de05895d2ab08513aaDD9313Fe505d86",
-        baseswapFactory: "0xFDa619b6d20975be80A10332cD39b9a4b0FAa8BB",
-        
+        router: "0x327Df1E6de05895d2ab08513aaDD9313Fe505d86", // BaseSwap Router
+        factory: "0xFDa619b6d20975be80A10332cD39b9a4b0FAa8BB", // BaseSwap Factory
         weth: "0x4200000000000000000000000000000000000006",
         networkName: "Base Mainnet"
     },
     
     // Base Sepolia Testnet (Chain ID: 84532)
     84532: {
-        // Working Uniswap V2 contracts on Base Sepolia
-        router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", 
-        factory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
-        
+        router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", // Uniswap V2 compatible on Sepolia
+        factory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6", // Uniswap V2 compatible on Sepolia
         weth: "0x4200000000000000000000000000000000000006",
         networkName: "Base Sepolia"
     }
@@ -295,5 +287,3 @@ export class BaseLiquidityManager {
         }
     }
 }
-
-    
