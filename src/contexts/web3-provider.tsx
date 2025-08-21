@@ -263,11 +263,13 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     }
   };
   
-    const addLiquidity = async (tokenA: Token, tokenB: Token, amountA: number, amountB: number): Promise<boolean> => {
+  const addLiquidity = async (tokenA: Token, tokenB: Token, amountA: number, amountB: number): Promise<boolean> => {
     if (!provider || !address || !network || !network.dexRouter) {
       toast({ variant: "destructive", title: "Setup Error", description: "DEX router is not configured for this network." });
       return false;
     }
+
+    let txToastId: string | undefined;
 
     try {
       const signer = provider.getSigner();
@@ -283,21 +285,20 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const parsedTokenAmount = ethers.utils.parseUnits(tokenAmount.toString(), token.decimals);
       const parsedEthAmount = ethers.utils.parseEther(ethAmount.toString());
 
-      // 5% slippage tolerance (using integer math)
       const slippageBps = 500; // 500 basis points = 5%
       const amountTokenMin = parsedTokenAmount.sub(parsedTokenAmount.mul(slippageBps).div(10000));
       const amountETHMin = parsedEthAmount.sub(parsedEthAmount.mul(slippageBps).div(10000));
-
-
-      // Approve router to spend token
-      toast({ title: "Approving Token...", description: "Please confirm the transaction in your wallet." });
-      const approveTx = await tokenContract.approve(network.dexRouter, parsedTokenAmount);
-      
-      // We don't wait for the receipt here to avoid timeouts on slow networks.
-      // The wallet will handle queuing the transactions.
-      toast({ title: "Approval Sent!", description: "Now confirming liquidity transaction." });
       
       const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
+
+      // Approve router to spend token
+      txToastId = toast({ title: "Approving Token...", description: "Please confirm the transaction in your wallet." }).id;
+      const approveTx = await tokenContract.approve(network.dexRouter, parsedTokenAmount);
+      
+      toast.update({id: txToastId, title: "Waiting for Approval...", description: "Your approval transaction is being confirmed."});
+      await approveTx.wait(); // Wait for the approval to be mined
+      
+      toast.update({id: txToastId, title: "Approval Confirmed!", description: "Now adding liquidity..."});
 
       const addLiquidityTx = await router.addLiquidityETH(
         checksummedTokenAddress,
@@ -308,17 +309,24 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         deadline,
         { value: parsedEthAmount }
       );
-
-      toast({ title: "Transaction Submitted", description: "Waiting for confirmation..." });
+      
+      toast.update({id: txToastId, title: "Transaction Submitted", description: "Waiting for final confirmation..." });
       await addLiquidityTx.wait();
-      toast({ title: "Success!", description: "Liquidity added successfully." });
+      
+      toast.update({id: txToastId, title: "Success!", description: "Liquidity added successfully."});
+      
       refreshTokens();
       return true;
 
     } catch (error: any) {
       console.error("Add liquidity failed:", error);
       const message = error.reason || (error.data ? error.data.message : null) || error.message || "An unknown error occurred.";
-      toast({ variant: "destructive", title: "Add Liquidity Failed", description: message });
+      const finalMessage = message.length > 100 ? message.substring(0, 100) + "..." : message;
+      if (txToastId) {
+        toast.update({id: txToastId, variant: "destructive", title: "Add Liquidity Failed", description: finalMessage });
+      } else {
+        toast({ variant: "destructive", title: "Add Liquidity Failed", description: finalMessage });
+      }
       return false;
     }
   };
