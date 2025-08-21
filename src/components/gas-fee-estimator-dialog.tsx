@@ -87,7 +87,7 @@ export const GasFeeEstimatorDialog: FC<GasFeeEstimatorDialogProps> = ({ open, on
             <Flame className="text-primary" /> Gas Fee Estimation
           </DialogTitle>
           <DialogDescription>
-            AI-powered estimation for your '{transactionType}' transaction.
+            Review the estimated fee for your '{transactionType}' transaction.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
