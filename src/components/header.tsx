@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useWeb3 } from "@/hooks/use-web3";
@@ -5,15 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Wallet, LogIn, CheckCircle, XCircle, Box, CircleDollarSign, ChevronDown, Network, LogOut } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { SUPPORTED_CHAINS } from "@/lib/constants";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import Link from 'next/link';
+
+// Moved to web3-provider.tsx to centralize chain configuration
+// const SUPPORTED_CHAINS = [...]
 
 export function Header() {
   const { connectWallet, disconnectWallet, address, balance, network, isConnecting, switchNetwork } = useWeb3();
 
   const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   const formatBalance = (bal: string) => parseFloat(bal).toFixed(4);
+
+  // Hardcoding the chains for the dropdown menu, as it's just for display and switching
+  const availableChains = [
+    { id: 8453, name: "Base Mainnet" },
+    { id: 84532, name: "Base Sepolia" },
+  ];
 
   return (
     <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
@@ -53,7 +62,7 @@ export function Header() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  {SUPPORTED_CHAINS.map((chain) => (
+                  {availableChains.map((chain) => (
                      <DropdownMenuItem key={chain.id} onClick={() => switchNetwork(chain.id)}>
                        <Network className="mr-2 h-4 w-4" />
                        {chain.name}
@@ -89,3 +98,5 @@ export function Header() {
     </header>
   );
 }
+
+    

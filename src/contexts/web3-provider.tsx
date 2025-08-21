@@ -11,7 +11,7 @@ import {
 import type { ReactNode } from "react";
 import { ethers } from "ethers";
 import type { Token } from "@/types";
-import { SUPPORTED_CHAINS, TOKEN_FACTORY_ADDRESS, TOKEN_FACTORY_ABI, TOKEN_ABI } from "@/lib/constants";
+import { TOKEN_FACTORY_ABI, TOKEN_ABI } from "@/lib/constants";
 import { BaseLiquidityManager } from "@/lib/liquidity-manager";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,7 +28,7 @@ interface Web3ContextType {
   isConnecting: boolean;
   tokens: Token[];
   loadingTokens: boolean;
-  network: typeof SUPPORTED_CHAINS[number] | null;
+  network: { id: number; name: string; factoryAddress: string } | null;
   provider: ethers.providers.Web3Provider | null;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
@@ -42,6 +42,24 @@ interface Web3ContextType {
 }
 
 export const Web3Context = createContext<Web3ContextType | undefined>(undefined);
+
+// =============================================================================
+// SUPPORTED CHAINS CONFIG - Centralized configuration
+// =============================================================================
+
+const SUPPORTED_CHAINS = [
+  {
+    id: 8453,
+    name: "Base Mainnet",
+    factoryAddress: "0xE1F32066C91a7b4F9Ffe5A5c9C655d93FCaF3e60", // From user's latest working ABI
+  },
+  {
+    id: 84532,
+    name: "Base Sepolia",
+    factoryAddress: "0x42914FF413a96244228aCA257D3Dc5F856fb1F30", // From user's latest working ABI
+  },
+];
+
 
 export function Web3Provider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
@@ -160,7 +178,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     if (!address || !provider || !network) return;
     setLoadingTokens(true);
     try {
-        const factoryAddress = TOKEN_FACTORY_ADDRESS[network.id];
+        const factoryAddress = network.factoryAddress;
         if(!factoryAddress) {
             setTokens([]);
             setLoadingTokens(false);
@@ -207,7 +225,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   const createToken = async (name: string, symbol: string, initialSupply: number): Promise<boolean> => {
      if (!provider || !address || !network) return false;
     
-    const factoryAddress = TOKEN_FACTORY_ADDRESS[network.id];
+    const factoryAddress = network.factoryAddress;
     if(!factoryAddress) {
         toast({ variant: "destructive", title: "Unsupported Network", description: "The token factory is not deployed on this network." });
         return false;
@@ -217,8 +235,9 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const signer = provider.getSigner();
       const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
       
-      // Correctly parse the initial supply with 18 decimals
-      const supply = ethers.utils.parseUnits(initialSupply.toString(), 18);
+      // The user's contract handles the decimal conversion internally.
+      // We pass the number directly without using parseUnits.
+      const supply = initialSupply.toString();
       const tx = await factory.createToken(name, symbol, supply);
       
       toast({ title: "Transaction Submitted", description: "Waiting for confirmation..." });

@@ -1,23 +1,7 @@
 
 
-// Contract addresses provided by the user
-export const TOKEN_FACTORY_ADDRESS: { [key: number]: string } = {
-  8453: "0xE1F32066C91a7b4F9Ffe5A5c9C655d93FCaF3e60", // Base Mainnet
-  84532: "0x42914FF413a96244228aCA257D3Dc5F856fb1F30", // Base Sepolia Testnet
-};
+// This file is now primarily for ABIs, chain configuration is in web3-provider.tsx
 
-export const SUPPORTED_CHAINS = [
-  {
-    id: 8453,
-    name: "Base Mainnet",
-  },
-  {
-    id: 84532,
-    name: "Base Sepolia",
-  },
-];
-
-// Minimal ABIs for contract interactions
 export const TOKEN_FACTORY_ABI = [
 	{
 		"anonymous": false,

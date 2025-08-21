@@ -6,12 +6,13 @@ import { Header } from "@/components/header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Network, TriangleAlert } from "lucide-react";
-import { SUPPORTED_CHAINS } from "@/lib/constants";
 import { Sidebar, SidebarProvider, SidebarInset, SidebarTrigger, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { Coins, PlusCircle, ArrowLeftRight, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// Moved to web3-provider.tsx to centralize chain configuration
+// const SUPPORTED_CHAINS = [...]
 
 function DashboardSidebar() {
     const pathname = usePathname();
@@ -59,9 +60,9 @@ function DashboardSidebar() {
 }
 
 export default function DexPage() {
-    const { tokens, address, chainId, switchNetwork } = useWeb3();
+    const { tokens, address, chainId, switchNetwork, network } = useWeb3();
     const isConnected = !!address;
-    const isWrongNetwork = isConnected && chainId && !SUPPORTED_CHAINS.some(c => c.id === chainId);
+    const isWrongNetwork = isConnected && !network;
 
     return (
          <SidebarProvider>
@@ -81,3 +82,5 @@ export default function DexPage() {
         </SidebarProvider>
     );
 }
+
+    

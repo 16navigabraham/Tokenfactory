@@ -6,7 +6,6 @@ import { useWeb3 } from "@/hooks/use-web3";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Network, TriangleAlert } from "lucide-react";
-import { SUPPORTED_CHAINS } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
 import { Sidebar, SidebarProvider, SidebarInset, SidebarTrigger, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
@@ -14,6 +13,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Box, Coins, PlusCircle, ArrowLeftRight, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+// Moved to web3-provider.tsx to centralize chain configuration
+// const SUPPORTED_CHAINS = [...]
 
 function DashboardSidebar() {
     const pathname = usePathname();
@@ -104,9 +106,9 @@ function WelcomeContent() {
 
 
 export default function Home() {
-  const { address, chainId, switchNetwork } = useWeb3();
+  const { address, chainId, switchNetwork, network } = useWeb3();
   const isConnected = !!address;
-  const isWrongNetwork = isConnected && chainId && !SUPPORTED_CHAINS.some(c => c.id === chainId);
+  const isWrongNetwork = isConnected && !network;
   const pathname = usePathname();
 
   const renderContent = () => {
@@ -143,14 +145,8 @@ export default function Home() {
                       <TriangleAlert className="h-4 w-4" />
                       <AlertTitle>Wrong Network Detected</AlertTitle>
                       <AlertDescription>
-                        Your wallet is connected to an unsupported network. Please switch to a supported network.
-                        <div className="flex gap-4 mt-4">
-                          {SUPPORTED_CHAINS.map(chain => (
-                            <Button key={chain.id} onClick={() => switchNetwork(chain.id)} variant="outline">
-                              <Network className="mr-2 h-4 w-4" /> Switch to {chain.name}
-                            </Button>
-                          ))}
-                        </div>
+                        Your wallet is connected to an unsupported network. Please switch to a supported network to continue.
+                        {/* The logic to list and switch networks is now inside the Header component */}
                       </AlertDescription>
                     </Alert>
                   </div>
@@ -166,3 +162,5 @@ export default function Home() {
     </SidebarProvider>
   );
 }
+
+    
