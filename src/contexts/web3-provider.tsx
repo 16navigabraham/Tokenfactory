@@ -51,12 +51,12 @@ const SUPPORTED_CHAINS = [
   {
     id: 8453,
     name: "Base Mainnet",
-    factoryAddress: "0xE1F32066C91a7b4F9Ffe5A5c9C655d93FCaF3e60", // From user's latest working ABI
+    factoryAddress: "0xE1F32066C91a7b4F9Ffe5A5c9C655d93FCaF3e60",
   },
   {
     id: 84532,
     name: "Base Sepolia",
-    factoryAddress: "0x42914FF413a96244228aCA257D3Dc5F856fb1F30", // From user's latest working ABI
+    factoryAddress: "0x42914FF413a96244228aCA257D3Dc5F856fb1F30",
   },
 ];
 
@@ -235,8 +235,6 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const signer = provider.getSigner();
       const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
       
-      // The user's contract handles the decimal conversion internally.
-      // We pass the number directly without using parseUnits.
       const supply = initialSupply.toString();
       const tx = await factory.createToken(name, symbol, supply);
       
@@ -309,9 +307,6 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     try {
       const liquidityManager = new BaseLiquidityManager(provider, chainId);
 
-      // The token amount to pair is not currently user-defined.
-      // For this workflow, we'll calculate a 1-to-1 pairing based on a small fraction of the user's balance
-      // or a fixed amount if the balance is very high, to prevent accidental large liquidity provisions.
       const userTokenBalance = parseFloat(token.balance);
       // Use a small, fixed amount of tokens for the liquidity pair to start.
       const tokenAmount = "1";
@@ -321,7 +316,6 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         tokenAmount: tokenAmount,
         ethAmount: ethAmount.toString(),
         userAddress: address,
-        slippage: 2,
         toast: txToast,
       });
 
