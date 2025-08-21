@@ -47,7 +47,7 @@ const transferSchema = z.object({
 type ActionType = "mint" | "transfer";
 
 export const TokenManagementDialog: FC<TokenManagementDialogProps> = ({ open, onOpenChange, token }) => {
-  const { mintTokens, transferTokens } = useWeb3();
+  const { mintTokens, transferTokens, refreshTokens } = useWeb3();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEstimatorOpen, setIsEstimatorOpen] = useState(false);
@@ -62,6 +62,12 @@ export const TokenManagementDialog: FC<TokenManagementDialogProps> = ({ open, on
     resolver: zodResolver(transferSchema),
     defaultValues: { recipient: "", amount: 100 },
   });
+
+  const handleClose = () => {
+    mintForm.reset();
+    transferForm.reset();
+    onOpenChange(false);
+  }
 
   const handleMintSubmit = (values: z.infer<typeof mintSchema>) => {
     setPendingAction({ type: "mint", data: values });
@@ -91,8 +97,8 @@ export const TokenManagementDialog: FC<TokenManagementDialogProps> = ({ open, on
       }
 
       if (success) {
-        toast({ title: "Transaction Submitted", description: `${title} transaction sent.` });
-        onOpenChange(false);
+        refreshTokens();
+        handleClose();
       } else {
         throw new Error("Transaction failed or was rejected.");
       }
@@ -116,7 +122,7 @@ export const TokenManagementDialog: FC<TokenManagementDialogProps> = ({ open, on
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Manage {token.name}</DialogTitle>

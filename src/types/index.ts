@@ -3,4 +3,5 @@ export interface Token {
   symbol: string;
   address: string;
   balance: string;
+  decimals: number;
 }

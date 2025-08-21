@@ -15,15 +15,16 @@ export const SUPPORTED_CHAINS = [
   },
 ];
 
-// Minimal ABIs for mocked interactions
+// Minimal ABIs for contract interactions
 export const TOKEN_FACTORY_ABI = [
-  "function createToken(string name, string symbol, uint256 initialSupply) returns (address)",
+  "function createToken(string name, string symbol, uint256 initialSupply, uint8 decimals) returns (address)",
   "function getTokensOfOwner(address owner) view returns (address[])",
 ];
 
 export const TOKEN_ABI = [
   "function name() view returns (string)",
   "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)",
   "function balanceOf(address account) view returns (uint256)",
   "function mint(address to, uint256 amount)",
   "function transfer(address recipient, uint256 amount) returns (bool)",

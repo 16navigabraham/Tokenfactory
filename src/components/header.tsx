@@ -3,10 +3,12 @@
 import { useWeb3 } from "@/hooks/use-web3";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, LogIn, CheckCircle, XCircle, Box, CircleDollarSign } from "lucide-react";
+import { Wallet, LogIn, CheckCircle, XCircle, Box, CircleDollarSign, ChevronDown, Network } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { SUPPORTED_CHAINS } from "@/lib/constants";
 
 export function Header() {
-  const { connectWallet, address, balance, network, isConnecting } = useWeb3();
+  const { connectWallet, address, balance, network, isConnecting, switchNetwork } = useWeb3();
 
   const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   const formatBalance = (bal: string) => parseFloat(bal).toFixed(4);
@@ -27,10 +29,34 @@ export function Header() {
                  <CircleDollarSign className="h-5 w-5 text-muted-foreground" />
                  <span className="font-mono text-foreground">{formatBalance(balance)} ETH</span>
               </div>
-              <Badge variant="outline" className="hidden sm:flex items-center gap-2 text-sm">
-                {network?.name || 'Unknown Network'}
-                {network ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
-              </Badge>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="hidden sm:flex items-center gap-2 text-sm">
+                    {network ? (
+                      <>
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        {network.name}
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4 text-red-500" />
+                        Unsupported Network
+                      </>
+                    )}
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {SUPPORTED_CHAINS.map((chain) => (
+                     <DropdownMenuItem key={chain.id} onClick={() => switchNetwork(chain.id)}>
+                       <Network className="mr-2 h-4 w-4" />
+                       {chain.name}
+                     </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button variant="secondary" disabled>
                 <Wallet className="mr-2 h-4 w-4" />
                 {formatAddress(address)}
