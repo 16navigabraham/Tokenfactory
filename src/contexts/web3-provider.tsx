@@ -269,7 +269,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    let txToastId: string | undefined;
+    let txToast: { id: string; dismiss: () => void; update: (props: any) => void; } | undefined;
 
     try {
       const signer = provider.getSigner();
@@ -292,13 +292,13 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
 
       // Approve router to spend token
-      txToastId = toast({ title: "Approving Token...", description: "Please confirm the transaction in your wallet." }).id;
+      txToast = toast({ title: "Approving Token...", description: "Please confirm the transaction in your wallet." });
       const approveTx = await tokenContract.approve(network.dexRouter, parsedTokenAmount);
       
-      toast.update({id: txToastId, title: "Waiting for Approval...", description: "Your approval transaction is being confirmed."});
+      txToast.update({id: txToast.id, title: "Waiting for Approval...", description: "Your approval transaction is being confirmed."});
       await approveTx.wait(); // Wait for the approval to be mined
       
-      toast.update({id: txToastId, title: "Approval Confirmed!", description: "Now adding liquidity..."});
+      txToast.update({id: txToast.id, title: "Approval Confirmed!", description: "Now adding liquidity..."});
 
       const addLiquidityTx = await router.addLiquidityETH(
         checksummedTokenAddress,
@@ -310,10 +310,10 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         { value: parsedEthAmount }
       );
       
-      toast.update({id: txToastId, title: "Transaction Submitted", description: "Waiting for final confirmation..." });
+      txToast.update({id: txToast.id, title: "Transaction Submitted", description: "Waiting for final confirmation..." });
       await addLiquidityTx.wait();
       
-      toast.update({id: txToastId, title: "Success!", description: "Liquidity added successfully."});
+      txToast.update({id: txToast.id, title: "Success!", description: "Liquidity added successfully."});
       
       refreshTokens();
       return true;
@@ -322,8 +322,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       console.error("Add liquidity failed:", error);
       const message = error.reason || (error.data ? error.data.message : null) || error.message || "An unknown error occurred.";
       const finalMessage = message.length > 100 ? message.substring(0, 100) + "..." : message;
-      if (txToastId) {
-        toast.update({id: txToastId, variant: "destructive", title: "Add Liquidity Failed", description: finalMessage });
+      if (txToast) {
+        txToast.update({id: txToast.id, variant: "destructive", title: "Add Liquidity Failed", description: finalMessage });
       } else {
         toast({ variant: "destructive", title: "Add Liquidity Failed", description: finalMessage });
       }
