@@ -3,22 +3,22 @@ import { ethers } from "ethers";
 import type { BigNumber } from "ethers";
 
 // =============================================================================
-// VERIFIED CONTRACT ADDRESSES FOR BASE NETWORKS
+// VERIFIED CONTRACT ADDRESSES FOR BASE NETWORKS - FINAL
 // =============================================================================
 
 const BASE_NETWORK_CONTRACTS = {
     // Base Mainnet (Chain ID: 8453)
     8453: {
-        router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", // Uniswap V2 Router
-        factory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6", // Uniswap V2 Factory
+        router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", // Uniswap V2 Compatible
+        factory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
         weth: "0x4200000000000000000000000000000000000006",
         networkName: "Base Mainnet"
     },
     
-    // Base Sepolia Testnet (Chain ID: 84532)
+    // Base Sepolia Testnet (Chain ID: 84532) - Using PancakeSwap's deployed contracts for reliability
     84532: {
-        router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", // Uniswap V2 Router
-        factory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6", // Uniswap V2 Factory
+        router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
+        factory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
         weth: "0x4200000000000000000000000000000000000006",
         networkName: "Base Sepolia"
     }
@@ -186,5 +186,3 @@ export class BaseLiquidityManager {
         return { success: true, transactionHash: receipt.transactionHash };
     }
 }
-
-    

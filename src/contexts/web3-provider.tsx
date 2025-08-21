@@ -457,5 +457,3 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
 }
-
-    
