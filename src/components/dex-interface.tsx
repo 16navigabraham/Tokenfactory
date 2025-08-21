@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -22,10 +23,8 @@ export function DexInterface({ tokens }: { tokens: Token[] }) {
   const [swapToToken, setSwapToToken] = useState<string>("");
 
   // Liquidity State
-  const [liquidityTokenA, setLiquidityTokenA] = useState<string>("");
-  const [liquidityTokenB, setLiquidityTokenB] = useState<string>("");
-  const [amountA, setAmountA] = useState("");
-  const [amountB, setAmountB] = useState("");
+  const [liquidityTokenAddress, setLiquidityTokenAddress] = useState<string>("");
+  const [ethAmount, setEthAmount] = useState("");
   const [isAddingLiquidity, setIsAddingLiquidity] = useState(false);
 
   const ethToken: Token = useMemo(() => ({
@@ -40,36 +39,32 @@ export function DexInterface({ tokens }: { tokens: Token[] }) {
   const allTokensForSelection = useMemo(() => [ethToken, ...tokens], [ethToken, tokens]);
 
   const handleAddLiquidity = async () => {
-    if (!liquidityTokenA || !liquidityTokenB || !amountA || !amountB) {
-        toast({ variant: "destructive", title: "Missing Information", description: "Please select both tokens and enter amounts." });
+    if (!liquidityTokenAddress || !ethAmount) {
+        toast({ variant: "destructive", title: "Missing Information", description: "Please select a token and enter an ETH amount." });
         return;
     }
     
-    if (liquidityTokenA === liquidityTokenB) {
-        toast({ variant: "destructive", title: "Invalid Pair", description: "Please select two different tokens." });
+    if (liquidityTokenAddress === ethToken.address) {
+        toast({ variant: "destructive", title: "Invalid Pair", description: "Cannot pair ETH with itself." });
         return;
     }
 
-    const tokenA = allTokensForSelection.find(t => t.address === liquidityTokenA);
-    const tokenB = allTokensForSelection.find(t => t.address === liquidityTokenB);
+    const selectedToken = allTokensForSelection.find(t => t.address === liquidityTokenAddress);
 
-    if(!tokenA || !tokenB) {
+    if(!selectedToken) {
         toast({ variant: "destructive", title: "Error", description: "Could not find selected token data." });
         return;
     }
     
-    if(!tokenA.isNative && !tokenB.isNative) {
-        toast({ variant: "destructive", title: "Invalid Pair", description: "One of the tokens must be ETH for this DEX version." });
-        return;
-    }
-
     setIsAddingLiquidity(true);
-    const success = await addLiquidity(tokenA, tokenB, parseFloat(amountA), parseFloat(amountB));
+    // The amount of the custom token to add is not defined by the user in this simplified UI.
+    // We will need to implement logic to calculate the optimal amount based on the current pool price,
+    // or for simplicity, we can just use a fixed amount for now, like 1 token.
+    // The BaseLiquidityManager expects the amounts in wei, so we need to parse them.
+    const success = await addLiquidity(selectedToken, parseFloat(ethAmount));
     if (success) {
-      setLiquidityTokenA("");
-      setLiquidityTokenB("");
-      setAmountA("");
-      setAmountB("");
+      setLiquidityTokenAddress("");
+      setEthAmount("");
     }
     setIsAddingLiquidity(false);
   };
@@ -122,21 +117,15 @@ export function DexInterface({ tokens }: { tokens: Token[] }) {
           <TabsContent value="liquidity">
             <div className="space-y-4 pt-4">
                <div className="space-y-2">
-                <Label>Token A</Label>
-                <div className="grid grid-cols-2 gap-2">
-                   <TokenSelector value={liquidityTokenA} onChange={setLiquidityTokenA} placeholder="Select Token" otherSelectedToken={liquidityTokenB} tokenList={allTokensForSelection}/>
-                   <Input id="token-a-amount" placeholder="0.0" type="number" value={amountA} onChange={(e) => setAmountA(e.target.value)} />
-                </div>
+                <Label>Token</Label>
+                 <TokenSelector value={liquidityTokenAddress} onChange={setLiquidityTokenAddress} placeholder="Select Token" tokenList={tokens}/>
               </div>
               <div className="flex justify-center">
                   <Plus className="h-6 w-6 text-muted-foreground"/>
               </div>
                <div className="space-y-2">
-                <Label>Token B</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <TokenSelector value={liquidityTokenB} onChange={setLiquidityTokenB} placeholder="Select Token" otherSelectedToken={liquidityTokenA} tokenList={allTokensForSelection}/>
-                  <Input id="token-b-amount" placeholder="0.0" type="number" value={amountB} onChange={(e) => setAmountB(e.target.value)}/>
-                </div>
+                <Label>ETH Amount</Label>
+                <Input id="eth-amount" placeholder="0.0" type="number" value={ethAmount} onChange={(e) => setEthAmount(e.target.value)}/>
               </div>
               <Button className="w-full" onClick={handleAddLiquidity} disabled={isAddingLiquidity}>
                 {isAddingLiquidity ? <Loader2 className="animate-spin" /> : "Add Liquidity"}
@@ -148,3 +137,5 @@ export function DexInterface({ tokens }: { tokens: Token[] }) {
     </Card>
   );
 }
+
+    

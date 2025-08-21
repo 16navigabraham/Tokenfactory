@@ -11,7 +11,8 @@ import {
 import type { ReactNode } from "react";
 import { ethers } from "ethers";
 import type { Token } from "@/types";
-import { SUPPORTED_CHAINS, TOKEN_FACTORY_ADDRESS, TOKEN_FACTORY_ABI, TOKEN_ABI, UNISWAP_V2_ROUTER_ABI, UNISWAP_V2_FACTORY_ABI } from "@/lib/constants";
+import { SUPPORTED_CHAINS, TOKEN_FACTORY_ADDRESS, TOKEN_FACTORY_ABI, TOKEN_ABI } from "@/lib/constants";
+import { BaseLiquidityManager } from "@/lib/liquidity-manager";
 import { useToast } from "@/hooks/use-toast";
 
 declare global {
@@ -35,7 +36,7 @@ interface Web3ContextType {
   createToken: (name: string, symbol: string, initialSupply: number) => Promise<boolean>;
   mintTokens: (tokenAddress: string, amount: number) => Promise<boolean>;
   transferTokens: (tokenAddress: string, recipient: string, amount: number) => Promise<boolean>;
-  addLiquidity: (tokenA: Token, tokenB: Token, amountA: number, amountB: number) => Promise<boolean>;
+  addLiquidity: (token: Token, ethAmount: number) => Promise<boolean>;
   getGasPrice: () => Promise<number | null>;
   refreshTokens: () => void;
 }
@@ -108,7 +109,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     setIsConnecting(true);
     try {
       await window.ethereum.request({ method: 'eth_requestAccounts' });
-      const newProvider = new ethers.providers.Web3Provider(window.ethereum);
+      const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
       await handleStateUpdate(newProvider);
     } catch (error: any) {
       console.error("Failed to connect wallet", error);
@@ -277,87 +278,42 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     }
   };
   
-  const addLiquidity = async (tokenA: Token, tokenB: Token, amountA: number, amountB: number): Promise<boolean> => {
-    if (!provider || !address || !network || !network.dexRouter || !network.dexFactory || !network.weth) {
-      toast({ variant: "destructive", title: "Setup Error", description: "DEX is not configured for this network." });
+  const addLiquidity = async (token: Token, ethAmount: number): Promise<boolean> => {
+    if (!provider || !chainId || !address) {
+      toast({ variant: "destructive", title: "Connection Error", description: "Please connect your wallet." });
       return false;
     }
-    
-    let txToast: { id: string, dismiss: () => void, update: (props: any) => void } | null = null;
+
+    const txToast = toast({ title: "Starting Liquidity Process...", description: "Please wait..." });
+
     try {
-      txToast = toast({ title: "Starting...", description: "Please follow the steps in your wallet." });
+      const liquidityManager = new BaseLiquidityManager(provider, chainId);
 
-      const signer = provider.getSigner();
-      const router = new ethers.Contract(network.dexRouter, UNISWAP_V2_ROUTER_ABI, signer);
-      const factory = new ethers.Contract(network.dexFactory, UNISWAP_V2_FACTORY_ABI, signer);
+      const tokenAmount = ethers.utils.parseUnits("1", "ether"); // Placeholder, real logic would calculate this
+      const ethAmountParsed = ethers.utils.parseEther(ethAmount.toString());
 
-      const token = tokenA.isNative ? tokenB : tokenA;
-      const tokenAmount = tokenA.isNative ? amountB : amountA;
-      const ethAmount = tokenA.isNative ? amountA : amountB;
-      
-      const checksummedTokenAddress = ethers.utils.getAddress(token.address);
-      const checksummedWethAddress = ethers.utils.getAddress(network.weth);
-      
-      // Step 1: Check if pair exists
-      txToast?.update({id: txToast.id, title: "Checking for trading pair..."});
-      
-      const pairAddress = await factory.getPair(checksummedTokenAddress, checksummedWethAddress);
+      const result = await liquidityManager.addLiquidityWorkflow({
+        tokenAddress: token.address,
+        tokenAmount: tokenAmount.toString(),
+        ethAmount: ethAmountParsed.toString(),
+        userAddress: address,
+        slippage: 2,
+        createPairIfNeeded: true,
+        toast: txToast,
+      });
 
-      if (pairAddress === ethers.constants.AddressZero) {
-        // Step 2: Create pair if it doesn't exist
-        txToast?.update({id: txToast.id, title: "Creating Pair...", description: "Please confirm in your wallet."});
-        
-        const createPairTx = await factory.createPair(checksummedTokenAddress, checksummedWethAddress);
-        await createPairTx.wait(); // Wait for pair creation to be mined
-        
-        txToast?.update({id: txToast.id, title: "Pair Created!", description: "Now proceeding to add liquidity."});
+      if (result.success) {
+        txToast.update({id: txToast.id, title: "Success!", description: `Liquidity added! Tx: ${result.transactionHash?.slice(0,10)}...`});
+        refreshTokens();
+        return true;
+      } else {
+         throw new Error("Add liquidity workflow failed.");
       }
-
-      // Step 3: Approve token spending
-      const tokenContract = new ethers.Contract(checksummedTokenAddress, TOKEN_ABI, signer);
-      const parsedTokenAmount = ethers.utils.parseUnits(tokenAmount.toString(), token.decimals);
-
-      txToast?.update({ id: txToast.id, title: "Approving Token...", description: "Please confirm the transaction in your wallet." });
-      
-      const approveTx = await tokenContract.approve(network.dexRouter, parsedTokenAmount);
-      await approveTx.wait(); // Wait for approval to be mined
-
-      txToast?.update({ id: txToast.id, title: "Approval Confirmed!", description: "Proceeding to add liquidity..." });
-      
-      // Step 4: Add Liquidity
-      const parsedEthAmount = ethers.utils.parseEther(ethAmount.toString());
-      const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes
-      
-      const slippageBps = ethers.BigNumber.from(500); // 500 basis points = 5%
-      const amountTokenMin = parsedTokenAmount.sub(parsedTokenAmount.mul(slippageBps).div(10000));
-      const amountETHMin = parsedEthAmount.sub(parsedEthAmount.mul(slippageBps).div(10000));
-      
-      const addLiquidityTx = await router.addLiquidityETH(
-        checksummedTokenAddress,
-        parsedTokenAmount,
-        amountTokenMin,
-        amountETHMin,
-        address,
-        deadline,
-        { value: parsedEthAmount }
-      );
-      
-      await addLiquidityTx.wait();
-      
-      txToast?.update({id: txToast.id, title: "Success!", description: "Liquidity added successfully."});
-      
-      refreshTokens();
-      return true;
-
     } catch (error: any) {
       console.error("Add liquidity failed:", error);
-      const message = error.reason || (error.data ? error.data.message : null) || error.message || "An unknown error occurred.";
+      const message = error.message || "An unknown error occurred.";
       const finalMessage = message.length > 100 ? message.substring(0, 100) + "..." : message;
-      if (txToast) {
-        txToast.update({id: txToast.id, variant: "destructive", title: "Add Liquidity Failed", description: finalMessage });
-      } else {
-        toast({variant: "destructive", title: "Add Liquidity Failed", description: finalMessage });
-      }
+      txToast.update({id: txToast.id, variant: "destructive", title: "Add Liquidity Failed", description: finalMessage });
       return false;
     }
   };
@@ -379,7 +335,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       if (window.ethereum?.isMetaMask) {
         setIsConnecting(true);
         try {
-          const newProvider = new ethers.providers.Web3Provider(window.ethereum);
+          const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
           const accounts = await newProvider.listAccounts();
           if (accounts.length > 0) {
             await handleStateUpdate(newProvider);
