@@ -11,14 +11,14 @@ export const SUPPORTED_CHAINS = [
     name: "Base Mainnet",
     weth: "0x4200000000000000000000000000000000000006",
     dexRouter: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", // Uniswap V2 Compatible Router
-    dexFactory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6" // Uniswap V2 Compatible Factory
+    dexFactory: "0x420DD3817f3695A9aa22C605Bf7A305226315E45" // Uniswap V2 Compatible Factory on Base Mainnet
   },
   {
     id: 84532,
     name: "Base Sepolia",
     weth: "0x4200000000000000000000000000000000000006", // Correct WETH for Sepolia
     dexRouter: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", // Uniswap V2 Compatible Router
-    dexFactory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6" // Uniswap V2 Compatible Factory
+    dexFactory: "0x0227628f3F023bb0B980b67D528571c95c6DaC1c" // Uniswap V2 Compatible Factory on Base Sepolia
   },
 ];
 
