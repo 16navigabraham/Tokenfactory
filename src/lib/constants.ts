@@ -1,3 +1,4 @@
+
 // Contract addresses provided by the user
 export const TOKEN_FACTORY_ADDRESS: { [key: number]: string } = {
   8453: "0xE1F32066C91a7b4F9Ffe5A5c9C655d93FCaF3e60", // Base Mainnet
@@ -9,13 +10,15 @@ export const SUPPORTED_CHAINS = [
     id: 8453,
     name: "Base Mainnet",
     weth: "0x4200000000000000000000000000000000000006",
-    dexRouter: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24" // Uniswap V2 Compatible Router
+    dexRouter: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", // Uniswap V2 Compatible Router
+    dexFactory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6" // Uniswap V2 Compatible Factory
   },
   {
     id: 84532,
     name: "Base Sepolia",
-    weth: "0x4200000000000000000000000000000000000022",
-    dexRouter: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24" // Uniswap V2 Compatible Router
+    weth: "0x4200000000000000000000000000000000000006", // Correct WETH for Sepolia
+    dexRouter: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", // Uniswap V2 Compatible Router
+    dexFactory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6" // Uniswap V2 Compatible Factory
   },
 ];
 
@@ -163,6 +166,33 @@ export const UNISWAP_V2_ROUTER_ABI = [
         "name": "WETH",
         "outputs": [
             {"internalType": "address", "name": "", "type": "address"}
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+];
+
+export const UNISWAP_V2_FACTORY_ABI = [
+    {
+        "inputs": [
+            {"internalType": "address", "name": "tokenA", "type": "address"},
+            {"internalType": "address", "name": "tokenB", "type": "address"}
+        ],
+        "name": "createPair",
+        "outputs": [
+            {"internalType": "address", "name": "pair", "type": "address"}
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {"internalType": "address", "name": "tokenA", "type": "address"},
+            {"internalType": "address", "name": "tokenB", "type": "address"}
+        ],
+        "name": "getPair",
+        "outputs": [
+            {"internalType": "address", "name": "pair", "type": "address"}
         ],
         "stateMutability": "view",
         "type": "function"
