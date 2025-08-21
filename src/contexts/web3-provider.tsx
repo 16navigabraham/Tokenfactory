@@ -277,7 +277,9 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const tokenAmount = tokenA.isNative ? amountB : amountA;
       const ethAmount = tokenA.isNative ? amountA : amountB;
 
-      const tokenContract = new ethers.Contract(token.address, TOKEN_ABI, signer);
+      const checksummedTokenAddress = ethers.utils.getAddress(token.address);
+
+      const tokenContract = new ethers.Contract(checksummedTokenAddress, TOKEN_ABI, signer);
       const parsedTokenAmount = ethers.utils.parseUnits(tokenAmount.toString(), token.decimals);
 
       // Approve router to spend token
@@ -289,7 +291,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
 
       const tx = await router.addLiquidityETH(
-        token.address,
+        checksummedTokenAddress,
         parsedTokenAmount,
         0, // amountTokenMin - setting to 0 for simplicity, consider slippage control for production
         0, // amountETHMin - setting to 0 for simplicity
@@ -364,14 +366,13 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     if(address && provider && network) {
       refreshTokens();
       updateBalance(provider, address);
-    }
-    if(!address) {
+    } else if(!address) {
       setTokens([]);
       setBalance("0");
     }
-  }, [address, network?.id]);
+  }, [address, provider, network, refreshTokens, updateBalance]);
 
-  const value = {
+  const value = useMemo(() => ({
     address,
     chainId,
     balance,
@@ -389,7 +390,9 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     getGasPrice,
     refreshTokens,
     addLiquidity,
-  };
+  }), [address, chainId, balance, isConnecting, tokens, loadingTokens, network, provider, connectWallet, disconnectWallet, switchNetwork, createToken, mintTokens, transferTokens, getGasPrice, refreshTokens, addLiquidity]);
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
 }
+
+    
