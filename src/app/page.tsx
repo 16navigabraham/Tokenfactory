@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Header } from "@/components/header";
@@ -9,7 +10,8 @@ import { SUPPORTED_CHAINS } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
 import { Sidebar, SidebarProvider, SidebarInset, SidebarTrigger, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
-import { Box, Coins, PlusCircle, ArrowLeftRight } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Box, Coins, PlusCircle, ArrowLeftRight, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -22,6 +24,14 @@ function DashboardSidebar() {
                     {/* Optional Header Content */}
                 </SidebarHeader>
                 <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={pathname === '/'}>
+                             <Link href="/">
+                                <BookOpen />
+                                Learn
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild isActive={pathname === '/create'}>
                             <Link href="/create">
@@ -52,11 +62,63 @@ function DashboardSidebar() {
     )
 }
 
+function WelcomeContent() {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Welcome to TokenForge</CardTitle>
+                <CardContent className="pt-4">
+                    <p className="text-muted-foreground mb-6">Your all-in-one solution for creating, managing, and trading ERC20 tokens on the Base network. Use the navigation on the left to get started, or read through our quick guides below to learn more.</p>
+
+                    <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="item-1">
+                            <AccordionTrigger>What is an ERC20 Token?</AccordionTrigger>
+                            <AccordionContent>
+                            An ERC20 token is a standard for creating and issuing smart contracts on the Ethereum blockchain. Think of it as a blueprint that defines a common list of rules that a token must follow. This standardization allows different tokens to interact with each other seamlessly within the larger ecosystem, including wallets, decentralized exchanges (like the one here!), and other applications. With TokenForge, you can create your own ERC20-compliant token in minutes.
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-2">
+                            <AccordionTrigger>The Basics of Token Creation</AccordionTrigger>
+                            <AccordionContent>
+                            Creating a token involves deploying a smart contract to the blockchain. This contract keeps track of who owns how many tokens. Key parameters include the token's name (e.g., "My Awesome Token"), its symbol (e.g., "MAT"), and the initial supply (the total number of tokens that exist at creation). Our "Create Token" page simplifies this process, handling the smart contract deployment for you.
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-3">
+                            <AccordionTrigger>Understanding Liquidity Pools</AccordionTrigger>
+                            <AccordionContent>
+                            A liquidity pool is a collection of two different tokens locked in a smart contract, creating a market for those two tokens. For example, you could pair your new token with ETH. By providing liquidity, you enable others to trade your token. In return, liquidity providers earn a small fee from every swap that happens in the pool. You can add liquidity to your tokens on our "DEX" page.
+                            </AccordionContent>
+                        </AccordionItem>
+                         <AccordionItem value="item-4">
+                            <AccordionTrigger>What is a DEX?</AccordionTrigger>
+                            <AccordionContent>
+                            DEX stands for Decentralized Exchange. Unlike traditional exchanges, a DEX operates without a central authority. Trades are executed directly between users (peer-to-peer) through smart contracts. The "DEX" page in this app is a simple interface that interacts with a decentralized exchange on the Base network, allowing you to create liquidity pools and eventually swap tokens.
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                </CardContent>
+            </CardHeader>
+        </Card>
+    );
+}
+
 
 export default function Home() {
   const { address, chainId, switchNetwork } = useWeb3();
   const isConnected = !!address;
   const isWrongNetwork = isConnected && chainId && !SUPPORTED_CHAINS.some(c => c.id === chainId);
+  const pathname = usePathname();
+
+  const renderContent = () => {
+    switch(pathname) {
+      case '/':
+        return <WelcomeContent />;
+      // The other pages now handle their own content rendering
+      default:
+        return null; // Or a 404 component
+    }
+  }
+
 
   return (
     <SidebarProvider>
@@ -93,14 +155,9 @@ export default function Home() {
                     </Alert>
                   </div>
                 ) : (
-                   <Card>
-                        <CardHeader>
-                            <CardTitle>Welcome to TokenForge</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p>Use the navigation on the left to get started.</p>
-                        </CardContent>
-                   </Card>
+                    <>
+                     {pathname === '/' ? <WelcomeContent /> : null}
+                    </>
                 )}
               </main>
             </SidebarInset>
