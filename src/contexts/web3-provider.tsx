@@ -72,26 +72,6 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const handleAccountsChanged = useCallback(async (accounts: string[]) => {
-    if (accounts.length > 0) {
-      const newAddress = accounts[0];
-      setAddress(newAddress);
-      if (provider) {
-        updateBalance(provider, newAddress);
-      }
-    } else {
-      disconnectWallet();
-    }
-  }, [provider, updateBalance, disconnectWallet]);
-
-  const handleChainChanged = useCallback((hexChainId: string) => {
-    const newChainId = parseInt(hexChainId, 16);
-    setChainId(newChainId);
-    if(window.ethereum) {
-       setProvider(new ethers.providers.Web3Provider(window.ethereum, "any"));
-    }
-  }, []);
-
   const connectWallet = useCallback(async () => {
     if (typeof window.ethereum === 'undefined') {
       toast({ variant: "destructive", title: "MetaMask not found", description: "Please install MetaMask to use this app." });
@@ -101,20 +81,22 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     setIsConnecting(true);
     try {
       const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
+      newProvider.on("network", (newNetwork, oldNetwork) => {
+          if (oldNetwork) {
+              window.location.reload();
+          }
+      });
       
-      const accounts = await newProvider.send("eth_requestAccounts", []);
-      if (accounts.length > 0) {
-        const networkInfo = await newProvider.getNetwork();
-        const newAddress = accounts[0];
+      await newProvider.send("eth_requestAccounts", []);
+      const signer = newProvider.getSigner();
+      const newAddress = await signer.getAddress();
+      const networkInfo = await newProvider.getNetwork();
 
-        setProvider(newProvider);
-        setAddress(newAddress);
-        setChainId(networkInfo.chainId);
-        updateBalance(newProvider, newAddress);
-      } else {
-         toast({ variant: "destructive", title: "Connection failed", description: "No accounts found. Please unlock MetaMask." });
-         disconnectWallet();
-      }
+      setProvider(newProvider);
+      setAddress(newAddress);
+      setChainId(networkInfo.chainId);
+      updateBalance(newProvider, newAddress);
+
     } catch (error: any) {
       console.error("Failed to connect wallet", error);
       if (error.code === 4001) {
@@ -127,6 +109,26 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       setIsConnecting(false);
     }
   }, [toast, updateBalance, disconnectWallet]);
+
+  const handleAccountsChanged = useCallback(async (accounts: string[]) => {
+    if (accounts.length > 0) {
+        const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
+        const signer = newProvider.getSigner();
+        const newAddress = await signer.getAddress();
+        const networkInfo = await newProvider.getNetwork();
+
+        setProvider(newProvider);
+        setAddress(newAddress);
+        setChainId(networkInfo.chainId);
+        updateBalance(newProvider, newAddress);
+    } else {
+      disconnectWallet();
+    }
+  }, [updateBalance, disconnectWallet]);
+
+  const handleChainChanged = useCallback(() => {
+    window.location.reload();
+  }, []);
   
   const switchNetwork = useCallback(async (newChainId: number) => {
     if (!provider) return;
@@ -324,8 +326,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       setTokens([]);
       setBalance("0");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, network?.id]);
+  }, [address, network, provider, refreshTokens, updateBalance]);
 
   const value = {
     address,
@@ -348,3 +349,5 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
 }
+
+    
