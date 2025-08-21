@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Token } from "@/types";
 import { useWeb3 } from "@/hooks/use-web3";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,15 +12,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeftRight, Plus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
+import { ethers } from "ethers";
 
 export function DexInterface({ tokens }: { tokens: Token[] }) {
-  const { balance, addLiquidity } = useWeb3();
+  const { balance, addLiquidity, swapTokens, getSwapQuote } = useWeb3();
   const { toast } = useToast();
   
   // Swap State
-  const [swapFromToken, setSwapFromToken] = useState<string>("");
-  const [swapToToken, setSwapToToken] = useState<string>("");
+  const [fromTokenAddress, setFromTokenAddress] = useState<string>("");
+  const [toTokenAddress, setToTokenAddress] = useState<string>("");
+  const [fromAmount, setFromAmount] = useState("");
+  const [toAmount, setToAmount] = useState("");
+  const [isSwapping, setIsSwapping] = useState(false);
+  const [isGettingQuote, setIsGettingQuote] = useState(false);
 
   // Liquidity State
   const [liquidityTokenAddress, setLiquidityTokenAddress] = useState<string>("");
@@ -38,6 +42,29 @@ export function DexInterface({ tokens }: { tokens: Token[] }) {
 
   const allTokensForSelection = useMemo(() => [ethToken, ...tokens], [ethToken, tokens]);
 
+  useEffect(() => {
+    const fetchQuote = async () => {
+        if (fromTokenAddress && toTokenAddress && fromAmount && parseFloat(fromAmount) > 0) {
+            setIsGettingQuote(true);
+            try {
+                const quote = await getSwapQuote(fromTokenAddress, toTokenAddress, fromAmount);
+                if(quote) {
+                    setToAmount(quote);
+                }
+            } catch (error) {
+                console.error("Failed to get quote", error);
+                setToAmount("");
+            } finally {
+                setIsGettingQuote(false);
+            }
+        } else {
+            setToAmount("");
+        }
+    };
+    const debounce = setTimeout(fetchQuote, 500);
+    return () => clearTimeout(debounce);
+  }, [fromTokenAddress, toTokenAddress, fromAmount, getSwapQuote]);
+
   const handleAddLiquidity = async () => {
     if (!liquidityTokenAddress || !ethAmount) {
         toast({ variant: "destructive", title: "Missing Information", description: "Please select a token and enter an ETH amount." });
@@ -48,20 +75,10 @@ export function DexInterface({ tokens }: { tokens: Token[] }) {
         toast({ variant: "destructive", title: "Invalid Pair", description: "Cannot pair ETH with itself." });
         return;
     }
-
-    const selectedToken = allTokensForSelection.find(t => t.address === liquidityTokenAddress);
-
-    if(!selectedToken) {
-        toast({ variant: "destructive", title: "Error", description: "Could not find selected token data." });
-        return;
-    }
     
     setIsAddingLiquidity(true);
     // The amount of the custom token to add is not defined by the user in this simplified UI.
-    // We will need to implement logic to calculate the optimal amount based on the current pool price,
-    // or for simplicity, we can just use a fixed amount for now, like 1 token.
-    // The BaseLiquidityManager expects the amounts in wei, so we need to parse them.
-    const success = await addLiquidity(selectedToken, parseFloat(ethAmount));
+    const success = await addLiquidity(liquidityTokenAddress, "1", parseFloat(ethAmount));
     if (success) {
       setLiquidityTokenAddress("");
       setEthAmount("");
@@ -69,6 +86,22 @@ export function DexInterface({ tokens }: { tokens: Token[] }) {
     setIsAddingLiquidity(false);
   };
   
+  const handleSwap = async () => {
+    if (!fromTokenAddress || !toTokenAddress || !fromAmount) {
+        toast({ variant: "destructive", title: "Missing Information", description: "Please select both tokens and enter an amount." });
+        return;
+    }
+    setIsSwapping(true);
+    const success = await swapTokens(fromTokenAddress, toTokenAddress, fromAmount);
+    if(success) {
+        setFromAmount("");
+        setToAmount("");
+        setFromTokenAddress("");
+        setToTokenAddress("");
+    }
+    setIsSwapping(false);
+  }
+
   const TokenSelector = ({ value, onChange, placeholder, otherSelectedToken, tokenList }: { value: string, onChange: (value: string) => void, placeholder: string, otherSelectedToken?: string, tokenList: Token[] }) => (
     <Select onValueChange={onChange} value={value}>
       <SelectTrigger>
@@ -91,7 +124,7 @@ export function DexInterface({ tokens }: { tokens: Token[] }) {
         <CardDescription>Swap tokens and manage liquidity pools.</CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="liquidity">
+        <Tabs defaultValue="swap">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="swap">Swap</TabsTrigger>
             <TabsTrigger value="liquidity">Liquidity</TabsTrigger>
@@ -99,19 +132,29 @@ export function DexInterface({ tokens }: { tokens: Token[] }) {
           <TabsContent value="swap">
             <div className="space-y-4 pt-4">
               <div className="grid grid-cols-2 gap-2">
-                <TokenSelector value={swapFromToken} onChange={setSwapFromToken} placeholder="From Token" otherSelectedToken={swapToToken} tokenList={allTokensForSelection}/>
-                <Input id="from-token-amount" placeholder="0.0" type="number" />
+                <TokenSelector value={fromTokenAddress} onChange={setFromTokenAddress} placeholder="From Token" otherSelectedToken={toTokenAddress} tokenList={allTokensForSelection}/>
+                <Input id="from-token-amount" placeholder="0.0" type="number" value={fromAmount} onChange={(e) => setFromAmount(e.target.value)} />
               </div>
               <div className="flex justify-center">
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" onClick={() => {
+                    setFromTokenAddress(toTokenAddress);
+                    setToTokenAddress(fromTokenAddress);
+                    setFromAmount(toAmount);
+                    setToAmount(fromAmount);
+                }}>
                   <ArrowLeftRight className="h-4 w-4" />
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <TokenSelector value={swapToToken} onChange={setSwapToToken} placeholder="To Token" otherSelectedToken={swapFromToken} tokenList={allTokensForSelection}/>
-                <Input id="to-token-amount" placeholder="0.0" type="number" readOnly />
+                <TokenSelector value={toTokenAddress} onChange={setToTokenAddress} placeholder="To Token" otherSelectedToken={fromTokenAddress} tokenList={allTokensForSelection}/>
+                 <div className="relative">
+                    <Input id="to-token-amount" placeholder="0.0" type="number" value={toAmount} readOnly />
+                    {isGettingQuote && <Loader2 className="animate-spin absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
+                </div>
               </div>
-              <Button className="w-full" disabled>Swap (Coming Soon)</Button>
+              <Button className="w-full" onClick={handleSwap} disabled={isSwapping || isGettingQuote || !toAmount}>
+                {isSwapping ? <Loader2 className="animate-spin" /> : "Swap"}
+              </Button>
             </div>
           </TabsContent>
           <TabsContent value="liquidity">

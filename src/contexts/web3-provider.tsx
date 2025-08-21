@@ -36,7 +36,9 @@ interface Web3ContextType {
   createToken: (name: string, symbol: string, initialSupply: number) => Promise<boolean>;
   mintTokens: (tokenAddress: string, amount: number) => Promise<boolean>;
   transferTokens: (tokenAddress: string, recipient: string, amount: number) => Promise<boolean>;
-  addLiquidity: (token: Token, ethAmount: number) => Promise<boolean>;
+  addLiquidity: (tokenAddress: string, tokenAmount: string, ethAmount: number) => Promise<boolean>;
+  swapTokens: (fromToken: string, toToken: string, amount: string) => Promise<boolean>;
+  getSwapQuote: (fromToken: string, toToken: string, amount: string) => Promise<string | null>;
   getGasPrice: () => Promise<number | null>;
   refreshTokens: () => void;
 }
@@ -51,7 +53,7 @@ const SUPPORTED_CHAINS = [
   {
     id: 8453,
     name: "Base Mainnet",
-    factoryAddress: "0xE1F32066C91a7b4F9Ffe5A5c9C655d93FCaF3e60",
+    factoryAddress: "0x42914FF413a96244228aCA257D3Dc5F856fb1F30",
   },
   {
     id: 84532,
@@ -296,7 +298,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     }
   };
   
-  const addLiquidity = async (token: Token, ethAmount: number): Promise<boolean> => {
+  const addLiquidity = async (tokenAddress: string, tokenAmount: string, ethAmount: number): Promise<boolean> => {
     if (!provider || !chainId || !address) {
       toast({ variant: "destructive", title: "Connection Error", description: "Please connect your wallet." });
       return false;
@@ -307,25 +309,17 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     try {
       const liquidityManager = new BaseLiquidityManager(provider, chainId);
 
-      const userTokenBalance = parseFloat(token.balance);
-      // Use a small, fixed amount of tokens for the liquidity pair to start.
-      const tokenAmount = "1";
-
-      const result = await liquidityManager.addLiquidityWorkflow({
-        tokenAddress: token.address,
-        tokenAmount: tokenAmount,
-        ethAmount: ethAmount.toString(),
-        userAddress: address,
-        toast: txToast,
-      });
-
-      if (result.success) {
-        txToast.update({id: txToast.id, title: "Success!", description: `Liquidity added! Tx: ${result.transactionHash?.slice(0,10)}...`});
-        refreshTokens();
-        return true;
-      } else {
-         throw new Error("Add liquidity workflow failed.");
-      }
+      const result = await liquidityManager.addLiquidityETH(
+          tokenAddress,
+          tokenAmount,
+          ethAmount.toString(),
+          address
+      );
+      
+      txToast.update({id: txToast.id, title: "Success!", description: `Liquidity added! Tx: ${result.transactionHash?.slice(0,10)}...`});
+      refreshTokens();
+      return true;
+      
     } catch (error: any) {
       console.error("Add liquidity failed:", error);
       const message = error.message || "An unknown error occurred.";
@@ -334,6 +328,55 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       return false;
     }
   };
+
+  const getSwapQuote = useCallback(async (fromToken: string, toToken: string, amount: string): Promise<string | null> => {
+    if (!provider || !chainId || !amount || parseFloat(amount) <= 0) return null;
+    try {
+      const liquidityManager = new BaseLiquidityManager(provider, chainId);
+      const quote = await liquidityManager.getAmountsOut(fromToken, toToken, amount);
+      return quote;
+    } catch (error) {
+      console.error("Failed to get swap quote:", error);
+      return null;
+    }
+  }, [provider, chainId]);
+
+  const swapTokens = async (fromToken: string, toToken: string, amount: string): Promise<boolean> => {
+    if (!provider || !chainId || !address) return false;
+    const txToast = toast({ title: "Preparing Swap...", description: "Please wait..." });
+    try {
+        const liquidityManager = new BaseLiquidityManager(provider, chainId);
+        let result;
+        
+        const fromTokenAddress = fromToken === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' ? liquidityManager.wethAddress : fromToken;
+        const toTokenAddress = toToken === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' ? liquidityManager.wethAddress : toToken;
+
+        if (fromToken === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
+            // ETH -> Token
+            txToast.update({id: txToast.id, title: "Swapping ETH for Tokens..."});
+            result = await liquidityManager.swapExactETHForTokens(toTokenAddress, amount, address);
+        } else if (toToken === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
+            // Token -> ETH
+            txToast.update({id: txToast.id, title: "Swapping Tokens for ETH..."});
+            result = await liquidityManager.swapExactTokensForETH(fromTokenAddress, amount, address);
+        } else {
+            // Token -> Token
+            txToast.update({id: txToast.id, title: "Swapping Tokens for Tokens..."});
+            result = await liquidityManager.swapExactTokensForTokens(fromTokenAddress, toTokenAddress, amount, address);
+        }
+
+        txToast.update({id: txToast.id, title: "Success!", description: `Swap complete! Tx: ${result.transactionHash?.slice(0,10)}...`});
+        refreshTokens();
+        updateBalance(provider, address);
+        return true;
+    } catch(error: any) {
+        console.error("Swap failed:", error);
+        const message = error.reason || error.message || "An unknown error occurred.";
+        const finalMessage = message.length > 100 ? message.substring(0, 100) + "..." : message;
+        txToast.update({id: txToast.id, variant: "destructive", title: "Swap Failed", description: finalMessage });
+        return false;
+    }
+  }
   
   const getGasPrice = useCallback(async (): Promise<number | null> => {
     if (!provider) return null;
@@ -408,7 +451,11 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     getGasPrice,
     refreshTokens,
     addLiquidity,
-  }), [address, chainId, balance, isConnecting, tokens, loadingTokens, network, provider, connectWallet, disconnectWallet, switchNetwork, createToken, mintTokens, transferTokens, getGasPrice, refreshTokens, addLiquidity]);
+    swapTokens,
+    getSwapQuote
+  }), [address, chainId, balance, isConnecting, tokens, loadingTokens, network, provider, connectWallet, disconnectWallet, switchNetwork, createToken, mintTokens, transferTokens, getGasPrice, refreshTokens, addLiquidity, swapTokens, getSwapQuote]);
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
 }
+
+    
