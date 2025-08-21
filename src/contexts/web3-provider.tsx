@@ -88,7 +88,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     
     setIsConnecting(true);
     try {
-      const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
+      const newProvider = new ethers.providers.Web3Provider(window.ethereum);
       
       await newProvider.send("eth_requestAccounts", []);
       const signer = newProvider.getSigner();
@@ -112,7 +112,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   const handleAccountsChanged = useCallback(async (accounts: string[]) => {
     if (accounts.length > 0) {
-        const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
+        const newProvider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = newProvider.getSigner();
         const newAddress = await signer.getAddress();
         const networkInfo = await newProvider.getNetwork();
@@ -304,26 +304,24 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         txToast.update({id: txToast.id, title: "Approval Confirmed!", description: "Now adding liquidity..."});
       }
 
-      const txParams = {
+      console.log("addLiquidityETH params:", {
         token: checksummedTokenAddress,
-        amountTokenDesired: parsedTokenAmount,
-        amountTokenMin,
-        amountETHMin,
+        amountTokenDesired: parsedTokenAmount.toString(),
+        amountTokenMin: amountTokenMin.toString(),
+        amountETHMin: amountETHMin.toString(),
         to: address,
         deadline,
-        options: { value: parsedEthAmount }
-      };
-
-      console.log("addLiquidityETH params:", txParams);
+        value: parsedEthAmount.toString()
+      });
 
       const addLiquidityTx = await router.addLiquidityETH(
-        txParams.token,
-        txParams.amountTokenDesired,
-        txParams.amountTokenMin,
-        txParams.amountETHMin,
-        txParams.to,
-        txParams.deadline,
-        txParams.options
+        checksummedTokenAddress,
+        parsedTokenAmount,
+        amountTokenMin,
+        amountETHMin,
+        address,
+        deadline,
+        { value: parsedEthAmount }
       );
       
       if (txToast) {
@@ -370,7 +368,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       if (window.ethereum) {
         setIsConnecting(true);
         try {
-          const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
+          const newProvider = new ethers.providers.Web3Provider(window.ethereum);
           const accounts = await newProvider.listAccounts();
           if (accounts.length > 0) {
             const signer = newProvider.getSigner();
@@ -434,3 +432,5 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
 }
+
+    
