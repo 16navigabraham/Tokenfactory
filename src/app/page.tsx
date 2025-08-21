@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 
 export default function Home() {
-  const { address, chainId, switchNetwork } = useWeb3();
+  const { address, chainId, switchNetwork, tokens } = useWeb3();
   const isConnected = !!address;
   const isWrongNetwork = isConnected && chainId && !SUPPORTED_CHAINS.some(c => c.id === chainId);
 
@@ -51,7 +51,7 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="flex flex-col gap-8">
               <TokenCreateForm />
-              <DexInterface />
+              <DexInterface tokens={tokens} />
             </div>
             <div>
               <MyTokensList />
