@@ -30,6 +30,7 @@ interface Web3ContextType {
   network: { id: number; name: string } | null;
   provider: ethers.providers.Web3Provider | null;
   connectWallet: () => Promise<void>;
+  disconnectWallet: () => void;
   switchNetwork: (chainId: number) => Promise<void>;
   createToken: (name: string, symbol: string, initialSupply: number) => Promise<boolean>;
   mintTokens: (tokenAddress: string, amount: number) => Promise<boolean>;
@@ -52,13 +53,14 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   const network = useMemo(() => SUPPORTED_CHAINS.find(c => c.id === chainId) || null, [chainId]);
 
-  const disconnect = useCallback(() => {
+  const disconnectWallet = useCallback(() => {
     setAddress(null);
     setBalance("0");
     setChainId(null);
     setTokens([]);
     setProvider(null);
-  }, []);
+    toast({ title: "Wallet Disconnected" });
+  }, [toast]);
 
   const updateBalance = useCallback(async (prov: ethers.providers.Web3Provider, addr: string) => {
     try {
@@ -78,9 +80,9 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         updateBalance(provider, newAddress);
       }
     } else {
-      disconnect();
+      disconnectWallet();
     }
-  }, [provider, updateBalance, disconnect]);
+  }, [provider, updateBalance, disconnectWallet]);
 
   const handleChainChanged = useCallback((hexChainId: string) => {
     const newChainId = parseInt(hexChainId, 16);
@@ -100,24 +102,31 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     try {
       const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
       
-      // It's better to request accounts first, then get the network.
       const accounts = await newProvider.send("eth_requestAccounts", []);
-      const networkInfo = await newProvider.getNetwork();
-      const newAddress = accounts[0];
+      if (accounts.length > 0) {
+        const networkInfo = await newProvider.getNetwork();
+        const newAddress = accounts[0];
 
-      setProvider(newProvider);
-      setAddress(newAddress);
-      setChainId(networkInfo.chainId);
-      updateBalance(newProvider, newAddress);
-
+        setProvider(newProvider);
+        setAddress(newAddress);
+        setChainId(networkInfo.chainId);
+        updateBalance(newProvider, newAddress);
+      } else {
+         toast({ variant: "destructive", title: "Connection failed", description: "No accounts found. Please unlock MetaMask." });
+         disconnectWallet();
+      }
     } catch (error: any) {
       console.error("Failed to connect wallet", error);
-      toast({ variant: "destructive", title: "Connection failed", description: "Could not connect to MetaMask. Please try again." });
-      disconnect();
+      if (error.code === 4001) {
+         toast({ variant: "destructive", title: "Connection rejected", description: "You rejected the connection request in MetaMask." });
+      } else {
+        toast({ variant: "destructive", title: "Connection failed", description: "Could not connect to MetaMask. Please try again." });
+      }
+      disconnectWallet();
     } finally {
       setIsConnecting(false);
     }
-  }, [toast, updateBalance, disconnect]);
+  }, [toast, updateBalance, disconnectWallet]);
   
   const switchNetwork = useCallback(async (newChainId: number) => {
     if (!provider) return;
@@ -166,13 +175,11 @@ export function Web3Provider({ children }: { children: ReactNode }) {
             };
           } catch (error) {
             console.error(`Failed to fetch data for token ${tokenAddress}:`, error);
-            // Return null for tokens that fail to load
             return null;
           }
         });
 
         const settledTokenData = await Promise.all(tokenDataPromises);
-        // Filter out any null results from failed fetches
         const validTokenData = settledTokenData.filter((data): data is Token => data !== null);
 
         setTokens(validTokenData);
@@ -197,7 +204,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const signer = provider.getSigner();
       const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
       
-      const supply = ethers.utils.parseUnits(initialSupply.toString(), 18); // Assuming 18 decimals
+      const supply = ethers.utils.parseUnits(initialSupply.toString(), 18);
       const tx = await factory.createToken(name, symbol, supply);
       
       toast({ title: "Transaction Submitted", description: "Waiting for confirmation..." });
@@ -330,6 +337,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     network,
     provider,
     connectWallet,
+    disconnectWallet,
     switchNetwork,
     createToken,
     mintTokens,

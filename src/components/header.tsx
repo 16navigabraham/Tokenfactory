@@ -3,12 +3,12 @@
 import { useWeb3 } from "@/hooks/use-web3";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, LogIn, CheckCircle, XCircle, Box, CircleDollarSign, ChevronDown, Network } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Wallet, LogIn, CheckCircle, XCircle, Box, CircleDollarSign, ChevronDown, Network, LogOut } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { SUPPORTED_CHAINS } from "@/lib/constants";
 
 export function Header() {
-  const { connectWallet, address, balance, network, isConnecting, switchNetwork } = useWeb3();
+  const { connectWallet, disconnectWallet, address, balance, network, isConnecting, switchNetwork } = useWeb3();
 
   const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   const formatBalance = (bal: string) => parseFloat(bal).toFixed(4);
@@ -57,10 +57,21 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Button variant="secondary" disabled>
-                <Wallet className="mr-2 h-4 w-4" />
-                {formatAddress(address)}
-              </Button>
+               <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                   <Button variant="secondary">
+                      <Wallet className="mr-2 h-4 w-4" />
+                      {formatAddress(address)}
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    <DropdownMenuItem onClick={disconnectWallet}>
+                       <LogOut className="mr-2 h-4 w-4" />
+                       Disconnect
+                     </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ) : (
             <Button onClick={connectWallet} disabled={isConnecting}>
