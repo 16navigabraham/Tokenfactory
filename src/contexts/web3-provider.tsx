@@ -295,10 +295,14 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       txToast = toast({ title: "Approving Token...", description: "Please confirm the transaction in your wallet." });
       const approveTx = await tokenContract.approve(network.dexRouter, parsedTokenAmount);
       
-      txToast.update({id: txToast.id, title: "Waiting for Approval...", description: "Your approval transaction is being confirmed."});
+      if (txToast) {
+        txToast.update({id: txToast.id, title: "Waiting for Approval...", description: "Your approval transaction is being confirmed."});
+      }
       await approveTx.wait(); // Wait for the approval to be mined
       
-      txToast.update({id: txToast.id, title: "Approval Confirmed!", description: "Now adding liquidity..."});
+      if (txToast) {
+        txToast.update({id: txToast.id, title: "Approval Confirmed!", description: "Now adding liquidity..."});
+      }
 
       const addLiquidityTx = await router.addLiquidityETH(
         checksummedTokenAddress,
@@ -310,10 +314,14 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         { value: parsedEthAmount }
       );
       
-      txToast.update({id: txToast.id, title: "Transaction Submitted", description: "Waiting for final confirmation..." });
+      if (txToast) {
+        txToast.update({id: txToast.id, title: "Transaction Submitted", description: "Waiting for final confirmation..." });
+      }
       await addLiquidityTx.wait();
       
-      txToast.update({id: txToast.id, title: "Success!", description: "Liquidity added successfully."});
+      if (txToast) {
+        txToast.update({id: txToast.id, title: "Success!", description: "Liquidity added successfully."});
+      }
       
       refreshTokens();
       return true;
