@@ -298,20 +298,32 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       if (txToast) {
         txToast.update({id: txToast.id, title: "Waiting for Approval...", description: "Your approval transaction is being confirmed."});
       }
-      await approveTx.wait(); // Wait for the approval to be mined
+      await approveTx.wait();
       
       if (txToast) {
         txToast.update({id: txToast.id, title: "Approval Confirmed!", description: "Now adding liquidity..."});
       }
 
-      const addLiquidityTx = await router.addLiquidityETH(
-        checksummedTokenAddress,
-        parsedTokenAmount,
+      const txParams = {
+        token: checksummedTokenAddress,
+        amountTokenDesired: parsedTokenAmount,
         amountTokenMin,
         amountETHMin,
-        address,
+        to: address,
         deadline,
-        { value: parsedEthAmount }
+        options: { value: parsedEthAmount }
+      };
+
+      console.log("addLiquidityETH params:", txParams);
+
+      const addLiquidityTx = await router.addLiquidityETH(
+        txParams.token,
+        txParams.amountTokenDesired,
+        txParams.amountTokenMin,
+        txParams.amountETHMin,
+        txParams.to,
+        txParams.deadline,
+        txParams.options
       );
       
       if (txToast) {
@@ -321,6 +333,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       
       if (txToast) {
         txToast.update({id: txToast.id, title: "Success!", description: "Liquidity added successfully."});
+      } else {
+        toast({ title: "Success!", description: "Liquidity added successfully."});
       }
       
       refreshTokens();
