@@ -217,7 +217,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const signer = provider.getSigner();
       const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
       
-      const supply = ethers.utils.parseUnits(initialSupply.toString(), 18); // Assuming 18 decimals for new tokens
+      // Correctly parse the initial supply with 18 decimals
+      const supply = ethers.utils.parseUnits(initialSupply.toString(), 18);
       const tx = await factory.createToken(name, symbol, supply);
       
       toast({ title: "Transaction Submitted", description: "Waiting for confirmation..." });
