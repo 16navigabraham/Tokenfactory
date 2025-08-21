@@ -33,7 +33,6 @@ const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters.").max(50),
   symbol: z.string().min(2, "Symbol must be at least 2 characters.").max(10),
   initialSupply: z.coerce.number().positive("Initial supply must be a positive number."),
-  decimals: z.coerce.number().int().min(0, "Decimals must be 0 or more.").max(18, "Decimals cannot exceed 18."),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -51,7 +50,6 @@ export function TokenCreateForm() {
       name: "",
       symbol: "",
       initialSupply: 1000000,
-      decimals: 18,
     },
   });
 
@@ -65,7 +63,7 @@ export function TokenCreateForm() {
     
     setIsSubmitting(true);
     try {
-      const success = await createToken(formData.name, formData.symbol, formData.initialSupply, formData.decimals);
+      const success = await createToken(formData.name, formData.symbol, formData.initialSupply);
       if (success) {
         toast({
           title: "Transaction Submitted",
@@ -135,20 +133,6 @@ export function TokenCreateForm() {
                       <Input type="number" placeholder="e.g. 1000000" {...field} />
                     </FormControl>
                     <FormDescription>The number of tokens to mint upon creation.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="decimals"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Decimals</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormDescription>The number of decimal places for your token (0-18).</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -31,7 +31,7 @@ interface Web3ContextType {
   provider: ethers.providers.Web3Provider | null;
   connectWallet: () => Promise<void>;
   switchNetwork: (chainId: number) => Promise<void>;
-  createToken: (name: string, symbol: string, initialSupply: number, decimals: number) => Promise<boolean>;
+  createToken: (name: string, symbol: string, initialSupply: number) => Promise<boolean>;
   mintTokens: (tokenAddress: string, amount: number) => Promise<boolean>;
   transferTokens: (tokenAddress: string, recipient: string, amount: number) => Promise<boolean>;
   getGasPrice: () => Promise<number | null>;
@@ -141,9 +141,9 @@ export function Web3Provider({ children }: { children: ReactNode }) {
             setTokens([]);
             return;
         };
-
-        const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, provider);
-        const ownedTokenAddresses = await factory.getTokensOfOwner(address);
+        const signer = provider.getSigner();
+        const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
+        const ownedTokenAddresses = await factory.getMyTokens();
 
         const tokenData = await Promise.all(ownedTokenAddresses.map(async (tokenAddress: string) => {
             const tokenContract = new ethers.Contract(tokenAddress, TOKEN_ABI, provider);
@@ -170,7 +170,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     }
   }, [address, provider, network, toast]);
   
-  const createToken = async (name: string, symbol: string, initialSupply: number, decimals: number): Promise<boolean> => {
+  const createToken = async (name: string, symbol: string, initialSupply: number): Promise<boolean> => {
      if (!provider || !address || !network) return false;
     
     const factoryAddress = TOKEN_FACTORY_ADDRESS[network.id];
@@ -183,8 +183,11 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const signer = provider.getSigner();
       const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
       
-      const supply = ethers.utils.parseUnits(initialSupply.toString(), decimals);
-      const tx = await factory.createToken(name, symbol, supply, decimals);
+      // The new ABI doesn't have a decimals parameter for creation, we assume it's a fixed value (e.g. 18) in the token contract itself
+      // or we need to fetch it if we want to parse the supply correctly.
+      // For now, we'll assume the token contract uses 18 decimals for parsing the initial supply.
+      const supply = ethers.utils.parseUnits(initialSupply.toString(), 18);
+      const tx = await factory.createToken(name, symbol, supply);
       
       toast({ title: "Transaction Submitted", description: "Waiting for confirmation..." });
       await tx.wait();
@@ -253,38 +256,40 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   }, [provider]);
 
   useEffect(() => {
-    if (window.ethereum) {
-      const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
-
-      const handleConnect = async () => {
+    const autoConnect = async () => {
+      if (window.ethereum) {
         setIsConnecting(true);
         try {
+          const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
           const accounts = await newProvider.listAccounts();
           if (accounts.length > 0) {
             const signer = newProvider.getSigner();
             const newAddress = await signer.getAddress();
             const networkInfo = await newProvider.getNetwork();
-            
+
             setProvider(newProvider);
             setAddress(newAddress);
             setChainId(networkInfo.chainId);
             updateBalance(newProvider, newAddress);
           }
-        } catch(e) {
+        } catch (e) {
             console.log("Could not auto-connect", e)
         }
         setIsConnecting(false);
+
+        window.ethereum.on('accountsChanged', handleAccountsChanged);
+        window.ethereum.on('chainChanged', handleChainChanged);
       }
-      handleConnect();
-
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', handleChainChanged);
-
-      return () => {
-          window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
-          window.ethereum?.removeListener('chainChanged', handleChainChanged);
-      };
     }
+    
+    autoConnect();
+
+    return () => {
+        if (window.ethereum) {
+          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+          window.ethereum.removeListener('chainChanged', handleChainChanged);
+        }
+    };
   }, [handleAccountsChanged, handleChainChanged, updateBalance]);
 
 
@@ -320,5 +325,3 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
 }
-
-    
