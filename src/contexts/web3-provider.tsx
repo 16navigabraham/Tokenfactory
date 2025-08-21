@@ -276,11 +276,18 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const token = tokenA.isNative ? tokenB : tokenA;
       const tokenAmount = tokenA.isNative ? amountB : amountA;
       const ethAmount = tokenA.isNative ? amountA : amountB;
-
+      
       const checksummedTokenAddress = ethers.utils.getAddress(token.address);
 
       const tokenContract = new ethers.Contract(checksummedTokenAddress, TOKEN_ABI, signer);
       const parsedTokenAmount = ethers.utils.parseUnits(tokenAmount.toString(), token.decimals);
+      const parsedEthAmount = ethers.utils.parseEther(ethAmount.toString());
+
+      // 5% slippage tolerance
+      const slippage = 0.05; 
+      const amountTokenMin = parsedTokenAmount.sub(parsedTokenAmount.mul(Math.floor(slippage * 100)).div(100));
+      const amountETHMin = parsedEthAmount.sub(parsedEthAmount.mul(Math.floor(slippage * 100)).div(100));
+
 
       // Approve router to spend token
       toast({ title: "Approving Token...", description: "Please confirm the transaction in your wallet." });
@@ -293,11 +300,11 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const tx = await router.addLiquidityETH(
         checksummedTokenAddress,
         parsedTokenAmount,
-        0, // amountTokenMin - setting to 0 for simplicity, consider slippage control for production
-        0, // amountETHMin - setting to 0 for simplicity
+        amountTokenMin,
+        amountETHMin,
         address,
         deadline,
-        { value: ethers.utils.parseEther(ethAmount.toString()) }
+        { value: parsedEthAmount }
       );
 
       toast({ title: "Transaction Submitted", description: "Waiting for confirmation..." });
