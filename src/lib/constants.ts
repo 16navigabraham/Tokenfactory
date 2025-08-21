@@ -8,10 +8,14 @@ export const SUPPORTED_CHAINS = [
   {
     id: 8453,
     name: "Base Mainnet",
+    weth: "0x4200000000000000000000000000000000000006",
+    dexRouter: "0x327Df1E6de05895d2ab08513a09d229484094025" // BaseSwap
   },
   {
     id: 84532,
     name: "Base Sepolia",
+    weth: "0x4200000000000000000000000000000000000022",
+    dexRouter: "0x03F2A4040932E2161474447000e521193322137B" // SwapBased
   },
 ];
 
@@ -51,45 +55,6 @@ export const TOKEN_FACTORY_ABI = [
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "allTokens",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "tokenAddress",
-				"type": "address"
-			},
-			{
-				"internalType": "string",
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "symbol",
-				"type": "string"
-			},
-			{
-				"internalType": "address",
-				"name": "creator",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "createdAt",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
 				"internalType": "string",
 				"name": "name",
 				"type": "string"
@@ -118,128 +83,12 @@ export const TOKEN_FACTORY_ABI = [
 	},
 	{
 		"inputs": [],
-		"name": "getLatestTokens",
-		"outputs": [
-			{
-				"components": [
-					{
-						"internalType": "address",
-						"name": "tokenAddress",
-						"type": "address"
-					},
-					{
-						"internalType": "string",
-						"name": "name",
-						"type": "string"
-					},
-					{
-						"internalType": "string",
-						"name": "symbol",
-						"type": "string"
-					},
-					{
-						"internalType": "address",
-						"name": "creator",
-						"type": "address"
-					},
-					{
-						"internalType": "uint256",
-						"name": "createdAt",
-						"type": "uint256"
-					}
-				],
-				"internalType": "struct SimpleTokenFactory.Token[]",
-				"name": "",
-				"type": "tuple[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
 		"name": "getMyTokens",
 		"outputs": [
 			{
 				"internalType": "address[]",
 				"name": "",
 				"type": "address[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "index",
-				"type": "uint256"
-			}
-		],
-		"name": "getTokenByIndex",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "tokenAddress",
-				"type": "address"
-			},
-			{
-				"internalType": "string",
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "symbol",
-				"type": "string"
-			},
-			{
-				"internalType": "address",
-				"name": "creator",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "createdAt",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getTotalTokens",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "myTokens",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
 			}
 		],
 		"stateMutability": "view",
@@ -254,4 +103,68 @@ export const TOKEN_ABI = [
   "function balanceOf(address account) view returns (uint256)",
   "function mint(address to, uint256 amount)",
   "function transfer(address recipient, uint256 amount) returns (bool)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)"
+];
+
+export const UNISWAP_V2_ROUTER_ABI = [
+    {
+        "inputs": [
+            {"internalType": "address", "name": "tokenA", "type": "address"},
+            {"internalType": "address", "name": "tokenB", "type": "address"},
+            {"internalType": "uint256", "name": "amountADesired", "type": "uint256"},
+            {"internalType": "uint256", "name": "amountBDesired", "type": "uint256"},
+            {"internalType": "uint256", "name": "amountAMin", "type": "uint256"},
+            {"internalType": "uint256", "name": "amountBMin", "type": "uint256"},
+            {"internalType": "address", "name": "to", "type": "address"},
+            {"internalType": "uint256", "name": "deadline", "type": "uint256"}
+        ],
+        "name": "addLiquidity",
+        "outputs": [
+            {"internalType": "uint256", "name": "amountA", "type": "uint256"},
+            {"internalType": "uint256", "name": "amountB", "type": "uint256"},
+            {"internalType": "uint256", "name": "liquidity", "type": "uint256"}
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {"internalType": "address", "name": "token", "type": "address"},
+            {"internalType": "uint256", "name": "amountTokenDesired", "type": "uint256"},
+            {"internalType": "uint256", "name": "amountTokenMin", "type": "uint256"},
+            {"internalType": "uint256", "name": "amountETHMin", "type": "uint256"},
+            {"internalType": "address", "name": "to", "type": "address"},
+            {"internalType": "uint256", "name": "deadline", "type": "uint256"}
+        ],
+        "name": "addLiquidityETH",
+        "outputs": [
+            {"internalType": "uint256", "name": "amountToken", "type": "uint256"},
+            {"internalType": "uint256", "name": "amountETH", "type": "uint256"},
+            {"internalType": "uint256", "name": "liquidity", "type": "uint256"}
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {"internalType": "uint256", "name": "amountIn", "type": "uint256"},
+            {"internalType": "address[]", "name": "path", "type": "address[]"}
+        ],
+        "name": "getAmountsOut",
+        "outputs": [
+            {"internalType": "uint256[]", "name": "amounts", "type": "uint256[]"}
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "WETH",
+        "outputs": [
+            {"internalType": "address", "name": "", "type": "address"}
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
 ];

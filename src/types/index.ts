@@ -4,4 +4,5 @@ export interface Token {
   address: string;
   balance: string;
   decimals: number;
+  isNative?: boolean;
 }

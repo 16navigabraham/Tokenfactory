@@ -11,7 +11,7 @@ import {
 import type { ReactNode } from "react";
 import { ethers } from "ethers";
 import type { Token } from "@/types";
-import { SUPPORTED_CHAINS, TOKEN_FACTORY_ADDRESS, TOKEN_FACTORY_ABI, TOKEN_ABI } from "@/lib/constants";
+import { SUPPORTED_CHAINS, TOKEN_FACTORY_ADDRESS, TOKEN_FACTORY_ABI, TOKEN_ABI, UNISWAP_V2_ROUTER_ABI } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 
 declare global {
@@ -27,7 +27,7 @@ interface Web3ContextType {
   isConnecting: boolean;
   tokens: Token[];
   loadingTokens: boolean;
-  network: { id: number; name: string } | null;
+  network: typeof SUPPORTED_CHAINS[number] | null;
   provider: ethers.providers.Web3Provider | null;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
@@ -35,6 +35,7 @@ interface Web3ContextType {
   createToken: (name: string, symbol: string, initialSupply: number) => Promise<boolean>;
   mintTokens: (tokenAddress: string, amount: number) => Promise<boolean>;
   transferTokens: (tokenAddress: string, recipient: string, amount: number) => Promise<boolean>;
+  addLiquidity: (tokenA: Token, tokenB: Token, amountA: number, amountB: number) => Promise<boolean>;
   getGasPrice: () => Promise<number | null>;
   refreshTokens: () => void;
 }
@@ -71,6 +72,13 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       setBalance("0");
     }
   }, []);
+  
+  const handleStateUpdate = useCallback((newProvider: ethers.providers.Web3Provider, newAddress: string, newChainId: number) => {
+      setProvider(newProvider);
+      setAddress(newAddress);
+      setChainId(newChainId);
+      updateBalance(newProvider, newAddress);
+  },[updateBalance]);
 
   const connectWallet = useCallback(async () => {
     if (typeof window.ethereum === 'undefined') {
@@ -81,21 +89,13 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     setIsConnecting(true);
     try {
       const newProvider = new ethers.providers.Web3Provider(window.ethereum, "any");
-      newProvider.on("network", (newNetwork, oldNetwork) => {
-          if (oldNetwork) {
-              window.location.reload();
-          }
-      });
       
       await newProvider.send("eth_requestAccounts", []);
       const signer = newProvider.getSigner();
       const newAddress = await signer.getAddress();
       const networkInfo = await newProvider.getNetwork();
 
-      setProvider(newProvider);
-      setAddress(newAddress);
-      setChainId(networkInfo.chainId);
-      updateBalance(newProvider, newAddress);
+      handleStateUpdate(newProvider, newAddress, networkInfo.chainId);
 
     } catch (error: any) {
       console.error("Failed to connect wallet", error);
@@ -108,7 +108,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     } finally {
       setIsConnecting(false);
     }
-  }, [toast, updateBalance, disconnectWallet]);
+  }, [toast, disconnectWallet, handleStateUpdate]);
 
   const handleAccountsChanged = useCallback(async (accounts: string[]) => {
     if (accounts.length > 0) {
@@ -116,15 +116,11 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         const signer = newProvider.getSigner();
         const newAddress = await signer.getAddress();
         const networkInfo = await newProvider.getNetwork();
-
-        setProvider(newProvider);
-        setAddress(newAddress);
-        setChainId(networkInfo.chainId);
-        updateBalance(newProvider, newAddress);
+        handleStateUpdate(newProvider, newAddress, networkInfo.chainId);
     } else {
       disconnectWallet();
     }
-  }, [updateBalance, disconnectWallet]);
+  }, [disconnectWallet, handleStateUpdate]);
 
   const handleChainChanged = useCallback(() => {
     window.location.reload();
@@ -206,7 +202,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       const signer = provider.getSigner();
       const factory = new ethers.Contract(factoryAddress, TOKEN_FACTORY_ABI, signer);
       
-      const supply = ethers.utils.parseUnits(initialSupply.toString(), 18);
+      const supply = ethers.utils.parseUnits(initialSupply.toString(), 18); // Assuming 18 decimals for new tokens
       const tx = await factory.createToken(name, symbol, supply);
       
       toast({ title: "Transaction Submitted", description: "Waiting for confirmation..." });
@@ -267,6 +263,54 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     }
   };
   
+    const addLiquidity = async (tokenA: Token, tokenB: Token, amountA: number, amountB: number): Promise<boolean> => {
+    if (!provider || !address || !network || !network.dexRouter) {
+      toast({ variant: "destructive", title: "Setup Error", description: "DEX router is not configured for this network." });
+      return false;
+    }
+
+    try {
+      const signer = provider.getSigner();
+      const router = new ethers.Contract(network.dexRouter, UNISWAP_V2_ROUTER_ABI, signer);
+
+      const token = tokenA.isNative ? tokenB : tokenA;
+      const tokenAmount = tokenA.isNative ? amountB : amountA;
+      const ethAmount = tokenA.isNative ? amountA : amountB;
+
+      const tokenContract = new ethers.Contract(token.address, TOKEN_ABI, signer);
+      const parsedTokenAmount = ethers.utils.parseUnits(tokenAmount.toString(), token.decimals);
+
+      // Approve router to spend token
+      toast({ title: "Approving Token...", description: "Please confirm the transaction in your wallet." });
+      const approveTx = await tokenContract.approve(network.dexRouter, parsedTokenAmount);
+      await approveTx.wait();
+      toast({ title: "Token Approved!", description: "Now adding liquidity." });
+
+      const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
+
+      const tx = await router.addLiquidityETH(
+        token.address,
+        parsedTokenAmount,
+        0, // amountTokenMin - setting to 0 for simplicity, consider slippage control for production
+        0, // amountETHMin - setting to 0 for simplicity
+        address,
+        deadline,
+        { value: ethers.utils.parseEther(ethAmount.toString()) }
+      );
+
+      toast({ title: "Transaction Submitted", description: "Waiting for confirmation..." });
+      await tx.wait();
+      toast({ title: "Success!", description: "Liquidity added successfully." });
+      refreshTokens();
+      return true;
+
+    } catch (error: any) {
+      const message = error.reason || error.message || "An unknown error occurred.";
+      toast({ variant: "destructive", title: "Add Liquidity Failed", description: message });
+      return false;
+    }
+  };
+  
   const getGasPrice = useCallback(async (): Promise<number | null> => {
     if (!provider) return null;
     try {
@@ -291,22 +335,21 @@ export function Web3Provider({ children }: { children: ReactNode }) {
             const newAddress = await signer.getAddress();
             const networkInfo = await newProvider.getNetwork();
 
-            setProvider(newProvider);
-            setAddress(newAddress);
-            setChainId(networkInfo.chainId);
-            updateBalance(newProvider, newAddress);
+            handleStateUpdate(newProvider, newAddress, networkInfo.chainId);
           }
         } catch (e) {
             console.log("Could not auto-connect", e)
         }
         setIsConnecting(false);
-
-        window.ethereum.on('accountsChanged', handleAccountsChanged);
-        window.ethereum.on('chainChanged', handleChainChanged);
       }
     }
     
     autoConnect();
+
+    if(window.ethereum) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
+    }
 
     return () => {
         if (window.ethereum?.removeListener) {
@@ -314,7 +357,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
           window.ethereum.removeListener('chainChanged', handleChainChanged);
         }
     };
-  }, [handleAccountsChanged, handleChainChanged, updateBalance]);
+  }, [handleAccountsChanged, handleChainChanged, handleStateUpdate]);
 
 
   useEffect(() => {
@@ -326,7 +369,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       setTokens([]);
       setBalance("0");
     }
-  }, [address, network, provider, refreshTokens, updateBalance]);
+  }, [address, network?.id]);
 
   const value = {
     address,
@@ -345,9 +388,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     transferTokens,
     getGasPrice,
     refreshTokens,
+    addLiquidity,
   };
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
 }
-
-    
