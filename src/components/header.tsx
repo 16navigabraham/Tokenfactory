@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Wallet, LogIn, CheckCircle, XCircle, Box, CircleDollarSign, ChevronDown, Network, LogOut } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { SUPPORTED_CHAINS } from "@/lib/constants";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import Link from 'next/link';
 
 export function Header() {
   const { connectWallet, disconnectWallet, address, balance, network, isConnecting, switchNetwork } = useWeb3();
@@ -17,10 +19,13 @@ export function Header() {
     <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 flex justify-between items-center h-16">
         <div className="flex items-center gap-3">
-          <div className="bg-primary p-2 rounded-lg">
-            <Box className="text-primary-foreground" />
-          </div>
-          <h1 className="text-xl font-bold text-foreground">TokenForge</h1>
+          {address && <SidebarTrigger className="md:hidden"/>}
+          <Link href="/" className="flex items-center gap-3">
+            <div className="bg-primary p-2 rounded-lg">
+              <Box className="text-primary-foreground" />
+            </div>
+            <h1 className="text-xl font-bold text-foreground">TokenForge</h1>
+          </Link>
         </div>
         <div>
           {address ? (
