@@ -104,53 +104,6 @@ export class BaseLiquidityManager {
     }
     
     // =============================================================================
-    // PAIR MANAGEMENT
-    // =============================================================================
-    
-    async checkPairExists(tokenA: string, tokenB: string) {
-        try {
-            const tokenAAddr = this.toChecksumAddress(tokenA);
-            const tokenBAddr = this.toChecksumAddress(tokenB);
-            
-            const pairAddress = await this.factoryContract.getPair(tokenAAddr, tokenBAddr);
-            const exists = pairAddress !== ethers.constants.AddressZero;
-            
-            return { exists, pairAddress };
-            
-        } catch (error: any) {
-            console.error("Error checking pair:", error);
-            throw new Error(`Failed to check pair: ${error.message}`);
-        }
-    }
-    
-    async createPair(tokenA: string, tokenB: string) {
-        try {
-            const tokenAAddr = this.toChecksumAddress(tokenA);
-            const tokenBAddr = this.toChecksumAddress(tokenB);
-            
-            const { exists } = await this.checkPairExists(tokenAAddr, tokenBAddr);
-            if (exists) {
-                throw new Error("Pair already exists");
-            }
-            
-            const tx = await this.factoryContract.createPair(tokenAAddr, tokenBAddr);
-            const receipt = await tx.wait();
-            const { pairAddress } = await this.checkPairExists(tokenAAddr, tokenBAddr);
-            
-            return {
-                success: true,
-                transactionHash: tx.hash,
-                pairAddress,
-                gasUsed: receipt.gasUsed.toString()
-            };
-            
-        } catch (error: any) {
-            console.error("Error creating pair:", error);
-            throw new Error(`Failed to create pair: ${error.message}`);
-        }
-    }
-    
-    // =============================================================================
     // TOKEN OPERATIONS
     // =============================================================================
     
@@ -239,7 +192,6 @@ export class BaseLiquidityManager {
         ethAmount: string,
         userAddress: string,
         slippage?: number,
-        createPairIfNeeded?: boolean,
         toast: any,
     }) {
         const {
@@ -248,7 +200,6 @@ export class BaseLiquidityManager {
             ethAmount,
             userAddress,
             slippage = 2,
-            createPairIfNeeded = true,
             toast
         } = params;
         
@@ -256,21 +207,10 @@ export class BaseLiquidityManager {
             const tokenAmountParsed = ethers.utils.parseUnits(tokenAmount, 18); // Assuming 18 decimals
             const ethAmountParsed = ethers.utils.parseEther(ethAmount);
 
-            toast.update({id: toast.id, title: "Checking for existing pair..."});
-            const { exists } = await this.checkPairExists(tokenAddress, this.contracts.weth);
-            
-            if (!exists && createPairIfNeeded) {
-                toast.update({id: toast.id, title: "Pair not found", description: "Creating a new trading pair..."});
-                const createResult = await this.createPair(tokenAddress, this.contracts.weth);
-                toast.update({id: toast.id, title: "Pair Created!", description: `Tx: ${createResult.transactionHash?.slice(0,10)}...`});
-            } else if (!exists) {
-                throw new Error("Pair does not exist and auto-creation is disabled.");
-            }
-            
             toast.update({id: toast.id, title: "Approving Tokens...", description: "Please confirm in your wallet."});
             await this.approveToken(tokenAddress, tokenAmountParsed, userAddress);
 
-            toast.update({id: toast.id, title: "Adding Liquidity...", description: "Please confirm the final transaction."});
+            toast.update({id: toast.id, title: "Adding Liquidity...", description: "The router will create a pair if needed. Please confirm the final transaction."});
             const result = await this.addLiquidityETH(
                 tokenAddress,
                 tokenAmountParsed,

@@ -309,16 +309,19 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     try {
       const liquidityManager = new BaseLiquidityManager(provider, chainId);
 
-      const tokenAmount = ethers.utils.parseUnits("1", "ether"); // Placeholder, real logic would calculate this
-      const ethAmountParsed = ethers.utils.parseEther(ethAmount.toString());
+      // The token amount to pair is not currently user-defined.
+      // For this workflow, we'll calculate a 1-to-1 pairing based on a small fraction of the user's balance
+      // or a fixed amount if the balance is very high, to prevent accidental large liquidity provisions.
+      const userTokenBalance = parseFloat(token.balance);
+      // Use a small, fixed amount of tokens for the liquidity pair to start.
+      const tokenAmount = "1";
 
       const result = await liquidityManager.addLiquidityWorkflow({
         tokenAddress: token.address,
-        tokenAmount: tokenAmount.toString(),
-        ethAmount: ethAmountParsed.toString(),
+        tokenAmount: tokenAmount,
+        ethAmount: ethAmount.toString(),
         userAddress: address,
         slippage: 2,
-        createPairIfNeeded: true,
         toast: txToast,
       });
 
@@ -415,5 +418,3 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
 }
-
-    
