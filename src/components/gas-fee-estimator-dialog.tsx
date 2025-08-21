@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Flame, BrainCircuit, Sparkles } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface GasFeeEstimatorDialogProps {
   open: boolean;
@@ -90,31 +92,33 @@ export const GasFeeEstimatorDialog: FC<GasFeeEstimatorDialogProps> = ({ open, on
             Review the estimated fee for your '{transactionType}' transaction.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4 space-y-4">
-          {loading && <LoadingSkeleton />}
-          {error && <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
-          {estimation && (
-            <div className="space-y-4 animate-in fade-in-50">
-              <div className="flex justify-between items-center bg-secondary p-3 rounded-lg">
-                <span className="text-muted-foreground">Estimated Fee</span>
-                <span className="text-lg font-bold text-primary">{estimation.estimatedGasFees.toFixed(6)} ETH</span>
-              </div>
+        <ScrollArea className="max-h-96 pr-6">
+            <div className="py-4 space-y-4">
+              {loading && <LoadingSkeleton />}
+              {error && <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
+              {estimation && (
+                <div className="space-y-4 animate-in fade-in-50">
+                  <div className="flex justify-between items-center bg-secondary p-3 rounded-lg">
+                    <span className="text-muted-foreground">Estimated Fee</span>
+                    <span className="text-lg font-bold text-primary">{estimation.estimatedGasFees.toFixed(6)} ETH</span>
+                  </div>
 
-              <div>
-                <h3 className="font-semibold flex items-center gap-2 mb-2"><BrainCircuit size={18} /> AI Reasoning</h3>
-                <p className="text-sm text-muted-foreground p-3 bg-secondary/50 rounded-md">{estimation.reasoning}</p>
-              </div>
+                  <div>
+                    <h3 className="font-semibold flex items-center gap-2 mb-2"><BrainCircuit size={18} /> AI Reasoning</h3>
+                    <p className="text-sm text-muted-foreground p-3 bg-secondary/50 rounded-md">{estimation.reasoning}</p>
+                  </div>
 
-              {estimation.optimizationSuggestions && (
-                 <div>
-                    <h3 className="font-semibold flex items-center gap-2 mb-2"><Sparkles size={18} /> Optimization Tips</h3>
-                    <p className="text-sm text-muted-foreground p-3 bg-secondary/50 rounded-md">{estimation.optimizationSuggestions}</p>
+                  {estimation.optimizationSuggestions && (
+                     <div>
+                        <h3 className="font-semibold flex items-center gap-2 mb-2"><Sparkles size={18} /> Optimization Tips</h3>
+                        <p className="text-sm text-muted-foreground p-3 bg-secondary/50 rounded-md">{estimation.optimizationSuggestions}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
-        <DialogFooter className="sm:justify-end gap-2">
+        </ScrollArea>
+        <DialogFooter className="sm:justify-end gap-2 pt-4">
           <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
