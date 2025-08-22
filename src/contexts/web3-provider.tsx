@@ -303,22 +303,26 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       toast({ variant: "destructive", title: "Connection Error", description: "Please connect your wallet." });
       return false;
     }
-
-    const txToast = toast({ title: "Starting Liquidity Process...", description: "Please wait..." });
+    const txToast = toast({ title: "Starting Liquidity Process...", description: "Please wait for each step to complete." });
 
     try {
-      const liquidityManager = new BaseLiquidityManager(provider, chainId);
-
-      const result = await liquidityManager.addLiquidityETH(
-          tokenAddress,
-          tokenAmount,
-          ethAmount.toString(),
-          address
-      );
+        const liquidityManager = new BaseLiquidityManager();
+        
+        const result = await liquidityManager.completeWorkflow({
+            provider: provider,
+            tokenAddress: tokenAddress,
+            tokenAmountInEther: tokenAmount,
+            ethAmountInEther: ethAmount.toString(),
+            slippage: 2,
+            createPairIfNeeded: true,
+            onStep: (message) => {
+                txToast.update({id: txToast.id, description: message });
+            }
+        });
       
-      txToast.update({id: txToast.id, title: "Success!", description: `Liquidity added! Tx: ${result.transactionHash?.slice(0,10)}...`});
-      refreshTokens();
-      return true;
+        txToast.update({id: txToast.id, title: "Success!", description: `Liquidity added! Tx: ${result.transactionHash?.slice(0,10)}...`});
+        refreshTokens();
+        return true;
       
     } catch (error: any) {
       console.error("Add liquidity failed:", error);
@@ -332,7 +336,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   const getSwapQuote = useCallback(async (fromToken: string, toToken: string, amount: string): Promise<string | null> => {
     if (!provider || !chainId || !amount || parseFloat(amount) <= 0) return null;
     try {
-      const liquidityManager = new BaseLiquidityManager(provider, chainId);
+      const liquidityManager = new BaseLiquidityManager();
+      await liquidityManager.initialize(provider);
       const quote = await liquidityManager.getAmountsOut(fromToken, toToken, amount);
       return quote;
     } catch (error) {
@@ -345,24 +350,25 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     if (!provider || !chainId || !address) return false;
     const txToast = toast({ title: "Preparing Swap...", description: "Please wait..." });
     try {
-        const liquidityManager = new BaseLiquidityManager(provider, chainId);
-        let result;
+        const liquidityManager = new BaseLiquidityManager();
+        await liquidityManager.initialize(provider);
         
-        const fromTokenAddress = fromToken === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' ? liquidityManager.wethAddress : fromToken;
-        const toTokenAddress = toToken === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' ? liquidityManager.wethAddress : toToken;
+        let result;
+        const fromIsEth = fromToken === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+        const toIsEth = toToken === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 
-        if (fromToken === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
+        if (fromIsEth) {
             // ETH -> Token
             txToast.update({id: txToast.id, title: "Swapping ETH for Tokens..."});
-            result = await liquidityManager.swapExactETHForTokens(toTokenAddress, amount, address);
-        } else if (toToken === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
+            result = await liquidityManager.swapExactETHForTokens(toToken, amount);
+        } else if (toIsEth) {
             // Token -> ETH
             txToast.update({id: txToast.id, title: "Swapping Tokens for ETH..."});
-            result = await liquidityManager.swapExactTokensForETH(fromTokenAddress, amount, address);
+            result = await liquidityManager.swapExactTokensForETH(fromToken, amount);
         } else {
             // Token -> Token
             txToast.update({id: txToast.id, title: "Swapping Tokens for Tokens..."});
-            result = await liquidityManager.swapExactTokensForTokens(fromTokenAddress, toTokenAddress, amount, address);
+            result = await liquidityManager.swapExactTokensForTokens(fromToken, toToken, amount);
         }
 
         txToast.update({id: txToast.id, title: "Success!", description: `Swap complete! Tx: ${result.transactionHash?.slice(0,10)}...`});
@@ -457,3 +463,5 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
 }
+
+    
