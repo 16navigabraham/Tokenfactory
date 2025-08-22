@@ -2,29 +2,27 @@
 import { ethers, type BigNumber } from "ethers";
 
 // =============================================================================
-// STEP 1: NETWORK CONFIGURATION
+// STEP 1: NETWORK CONFIGURATION - UPDATED WITH BASESWAP CONTRACTS
 // =============================================================================
 
 const NETWORK_CONFIG = {
-    // Base Mainnet (Chain ID: 8453)
+    // Base Mainnet (Chain ID: 8453) - Using BaseSwap
     8453: {
         name: "Base Mainnet",
         rpcUrl: "https://mainnet.base.org",
         explorer: "https://basescan.org",
-        // Uniswap V2 (Most reliable)
-        router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
-        factory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+        router: "0x327Df1E6de05895d2ab08513aaDD9313Fe505d86",
+        factory: "0xFDa619b6d20975be80A10332cD39b9a4b0FAa8BB",
         weth: "0x4200000000000000000000000000000000000006"
     },
     
-    // Base Sepolia Testnet (Chain ID: 84532)
+    // Base Sepolia Testnet (Chain ID: 84532) - Using BaseSwap
     84532: {
         name: "Base Sepolia",
         rpcUrl: "https://sepolia.base.org",
-        explorer: "https://sepolia-explorer.base.org", // Corrected explorer
-        // Working testnet contracts from PancakeSwap V2
-        router: "0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3",
-        factory: "0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E",
+        explorer: "https://sepolia.basescan.org",
+        router: "0x1689E7B1F10000AE47eBfE339a4f69dECd19F602",
+        factory: "0x38015D05f4fEC8AFe15D7cc0386a126574e8077B",
         weth: "0x4200000000000000000000000000000000000006"
     }
 };
