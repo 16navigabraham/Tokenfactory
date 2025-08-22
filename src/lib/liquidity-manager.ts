@@ -2,27 +2,29 @@
 import { ethers, type BigNumber } from "ethers";
 
 // =============================================================================
-// STEP 1: NETWORK CONFIGURATION - UPDATED WITH BASESWAP CONTRACTS
+// STEP 1: NETWORK CONFIGURATION - USING OFFICIAL UNISWAP V2 ADDRESSES
 // =============================================================================
 
 const NETWORK_CONFIG = {
-    // Base Mainnet (Chain ID: 8453) - Using BaseSwap
+    // Base Mainnet (Chain ID: 8453)
     8453: {
         name: "Base Mainnet",
         rpcUrl: "https://mainnet.base.org",
         explorer: "https://basescan.org",
-        router: "0x327Df1E6de05895d2ab08513aaDD9313Fe505d86",
-        factory: "0xFDa619b6d20975be80A10332cD39b9a4b0FAa8BB",
+        // Uniswap V2
+        router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
+        factory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
         weth: "0x4200000000000000000000000000000000000006"
     },
     
-    // Base Sepolia Testnet (Chain ID: 84532) - Using BaseSwap
+    // Base Sepolia Testnet (Chain ID: 84532)
     84532: {
         name: "Base Sepolia",
         rpcUrl: "https://sepolia.base.org",
         explorer: "https://sepolia.basescan.org",
-        router: "0x4200000000000000000000000000000000000024", // Incorrect, but placeholder. Using a known working one for now.
-        factory: "0x4200000000000000000000000000000000000008",// Incorrect, but placeholder
+        // Uniswap V2
+        router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
+        factory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
         weth: "0x4200000000000000000000000000000000000006"
     }
 };
@@ -390,6 +392,8 @@ export class BaseLiquidityManager {
             Math.floor(Date.now() / 1000) + 60 * 20
         );
         const receipt = await tx.wait();
-        return { success: true, transactionHash: receipt.transactionHash };
+        return { success: true, transactionHah: receipt.transactionHash };
     }
 }
+
+    
