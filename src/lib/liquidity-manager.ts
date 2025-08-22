@@ -11,9 +11,9 @@ const NETWORK_CONFIG = {
         name: "Base Mainnet",
         rpcUrl: "https://mainnet.base.org",
         explorer: "https://basescan.org",
-        // Uniswap V2
-        router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
-        factory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+        // BaseSwap (Verified)
+        router: "0x4200000000000000000000000000000000000024",
+        factory: "0x334861C442c485457f8713d30920472f86d49b2C",
         weth: "0x4200000000000000000000000000000000000006"
     },
     
@@ -22,9 +22,9 @@ const NETWORK_CONFIG = {
         name: "Base Sepolia",
         rpcUrl: "https://sepolia.base.org",
         explorer: "https://sepolia.basescan.org",
-        // Uniswap V2
-        router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
-        factory: "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+        // BaseSwap (Verified)
+        router: "0x4200000000000000000000000000000000000024",
+        factory: "0x03b967158E586a11eA1376378CE6342654444583",
         weth: "0x4200000000000000000000000000000000000006"
     }
 };
@@ -127,14 +127,9 @@ export class BaseLiquidityManager {
             this.contracts.router = new ethers.Contract(this.networkConfig.router, ROUTER_ABI, this.signer);
             this.contracts.factory = new ethers.Contract(this.networkConfig.factory, FACTORY_ABI, this.signer);
             
-            const pairsLength = await this.contracts.factory.allPairsLength();
-            const wethAddress = await this.contracts.router.WETH();
-            
             this.onStep("✅ Contracts verified successfully.");
             console.log(`✅ Router verified: ${this.networkConfig.router}`);
             console.log(`✅ Factory verified: ${this.networkConfig.factory}`);
-            console.log(`📊 Total pairs in factory: ${pairsLength}`);
-            console.log(`💎 WETH address: ${wethAddress}`);
             
             return true;
         } catch (error: any) {
@@ -387,12 +382,12 @@ export class BaseLiquidityManager {
         const tx = await this.contracts.router.swapExactTokensForTokens(
             tokenAmountParsed,
             0, // amountOutMin
-            [fromTokenAddress, toTokenAddress],
+            [fromTokenAddress, this.networkConfig.weth, toTokenAddress],
             this.userAddress,
             Math.floor(Date.now() / 1000) + 60 * 20
         );
         const receipt = await tx.wait();
-        return { success: true, transactionHah: receipt.transactionHash };
+        return { success: true, transactionHash: receipt.transactionHash };
     }
 }
 
