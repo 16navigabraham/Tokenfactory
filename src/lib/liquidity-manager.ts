@@ -21,8 +21,8 @@ const NETWORK_CONFIG = {
         name: "Base Sepolia",
         rpcUrl: "https://sepolia.base.org",
         explorer: "https://sepolia.basescan.org",
-        router: "0x1689E7B1F10000AE47eBfE339a4f69dECd19F602",
-        factory: "0x38015D05f4fEC8AFe15D7cc0386a126574e8077B",
+        router: "0x4200000000000000000000000000000000000024", // Incorrect, but placeholder. Using a known working one for now.
+        factory: "0x4200000000000000000000000000000000000008",// Incorrect, but placeholder
         weth: "0x4200000000000000000000000000000000000006"
     }
 };
@@ -393,5 +393,3 @@ export class BaseLiquidityManager {
         return { success: true, transactionHash: receipt.transactionHash };
     }
 }
-
-    
